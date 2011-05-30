@@ -5,6 +5,6 @@ PHP_ARG_ENABLE(meta,
 
 if test $PHP_META != "no"; then
 	PHP_SUBST(META_SHARED_LIBADD)
-	PHP_NEW_EXTENSION(meta,  php_scanner.c php_parser.c meta.c, $ext_shared)
+	PHP_NEW_EXTENSION(meta, meta.c php_scanner.c php_parser.c , $ext_shared)
 	PHP_ADD_MAKEFILE_FRAGMENT
 fi
