@@ -9,6 +9,7 @@ $(srcdir)/php_scanner.c: $(srcdir)/php_scanner.re $(srcdir)/php_parser.h
 #$(srcdir)/php_parser.c $(srcdir)/php_parser.h: $(srcdir)/lemon $(srcdir)/php_parser.y
 
 $(srcdir)/php_parser.c $(srcdir)/php_parser.h: $(srcdir)/lemon
+#TODO make the "mv" portable
 	@(cd $(srcdir); ./lemon -q php_parser_meta.y; mv php_parser_meta.c php_parser.c)
 
 $(srcdir)/lemon:
