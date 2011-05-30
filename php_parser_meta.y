@@ -1,3 +1,11 @@
+%include {
+#ifndef NDEBUG
+static const char *const yyTokenName[];
+const char* meta_token_repr(int n) {
+    return yyTokenName[n];
+}
+#endif
+}
 %start_symbol start
 %token_prefix T_
 
@@ -9,7 +17,7 @@
 %nonassoc LNUMBER.
 
 // dummy tokens
-%nonassoc OPEN_TAG OUTSIDE_SCRIPTING WHITESPACE COMMENT CLOSE_TAG DOC_COMMENT.
+%nonassoc OPEN_TAG OUTSIDE_SCRIPTING WHITESPACE COMMENT CLOSE_TAG DOC_COMMENT NEWLINE.
 // must be last
 %nonassoc INTERNAL_SKIP.
 
@@ -22,6 +30,6 @@ unticked_statement ::= expr COLON.
 
 expr ::= scalar.
 expr ::= expr PLUS expr.
-		   
+           
 scalar ::= common_scalar.
 common_scalar ::= LNUMBER.
