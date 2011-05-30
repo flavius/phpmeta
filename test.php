@@ -1,7 +1,15 @@
 <?php
-$src = '';
-$src = '<?php 	42';
-$src = '<?=';
-$src = '<?php 1';
-$src = 'abc<?php 12345';
-meta_test($src);
+$inputs = array(
+    'empty' => '',
+    'html only' => 'hello world',
+    'empty processing' => '<?php',
+    'processing' => '<?php 42',
+    'processing and inline html' => 'abc<?php 42',
+);
+
+foreach($inputs as $title => $input) {
+    echo $title, PHP_EOL;
+    echo "================================================", PHP_EOL;
+    meta_test($input);
+    echo PHP_EOL;
+}

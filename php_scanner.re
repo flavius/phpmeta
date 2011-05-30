@@ -170,37 +170,25 @@ PHP_START_EX ("<?="|"<?"|"<%="|"<%")
 //TODO flags to set for T_OPEN_TAG: IS_SHORT IS_ASP IS_ECHO EOL_PLATFORM {"unix", "windows", "mac"}
 
 lex_start:
+//<!*> := PRINT_DBG("new LEXEME\n"); //TODO increment scanner's lexemes count
 /*!re2c
-<!*> := PRINT_DBG("new LEXEME\n"); //TODO increment scanner's lexemes count
 
 <ST_INITIAL>{ANY_CHAR} {
-    PRINT_DBG("inline html '%c'\n", *YYCURSOR);
     if(*YYCURSOR == '\0') {//TODO more detection so we're not hampered by NULs in input
+        if(scanner->src_len == 0) {
+            minor = NULL;
+            RETURN(0);
+        }
         meta_scanner_pushtoken(scanner, 0, NULL);
         MAKE_STD_ZVAL(*minor);
-        ZVAL_STRINGL(*minor, last_cursor, YYCURSOR - last_cursor + 1, 1);
-        return T_OUTSIDE_SCRIPTING;
+        ZVAL_STRINGL(*minor, last_cursor, YYCURSOR - last_cursor, 1);
+        RETURN(T_OUTSIDE_SCRIPTING);
     }
     else {
         yymore();
     }
-    /*
-    else if(*YYCURSOR == '<' && (*(YYCURSOR+1) == '?' || *(YYCURSOR+1) == '%')) {
-        if(YYCURSOR != last_cursor) {//if not at the beginning, we want to 
-                                    //unwind one char and give IN_SCRIPTING kick in
-            yyless();
-        }
-        else {
-            yymore();
-        }
-    }
-    else {
-        yymore();
-    }
-    */
 }
 <ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
-    PRINT_DBG("PHP_START");
     transient_delta=5;
 do_start:
     SETSTATE(ST_IN_SCRIPTING);
@@ -212,11 +200,13 @@ do_start:
         RETURN(T_OPEN_TAG);
     }
     else {
+        PRINT_DBG("OUTSIDE_SCRIPTING");
         meta_scanner_pushtoken(scanner, T_OPEN_TAG, open_tag);
         MAKE_STD_ZVAL(*minor);
-        ZVAL_STRINGL(*minor, last_cursor, YYMARKER - last_cursor - 1, 1);
+        ZVAL_STRINGL(*minor, last_cursor, YYMARKER - last_cursor - 2, 1);
         RETURN(T_OUTSIDE_SCRIPTING);
     }
+    PRINT_DBG("PHP_START");
 }
 
 <ST_INITIAL>{PHP_START_EX} {
@@ -229,9 +219,6 @@ do_start:
         transient_delta = 2;
     }
     goto do_start;
-}
-<ST_INITIAL>{EOI} {
-    RETURN(0);
 }
 <ST_IN_SCRIPTING>{EOI} {
     RETURN(0);

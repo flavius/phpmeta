@@ -1,6 +1,7 @@
 set confirm off
 set breakpoint pending on
 
+break php_scanner.re:193
 break meta_scan
 
 set args -f test.php

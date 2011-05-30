@@ -6,6 +6,8 @@
 #include "php_scanner.h"
 #include "php_parser.h"
 
+#define DEBUG
+
 PHP_FUNCTION(meta_test) {
     zval *src;
     meta_scanner* scanner;
@@ -17,19 +19,24 @@ PHP_FUNCTION(meta_test) {
         WRONG_PARAM_COUNT;
     }
     //TODO check if string
-    if(!Z_STRLEN_P(src)) {
-        RETURN_NULL();
-    }
+    /*if(!Z_STRLEN_P(src)) {*/
+        /*RETURN_NULL();*/
+    /*}*/
     scanner = meta_scanner_alloc(src);
     do {
         major = meta_scan(scanner, &minor TSRMLS_CC);
-        php_printf("major: %d ('%s')\n", major, meta_token_repr(major));
+#ifdef DEBUG
+        php_printf("%s (%d)", meta_token_repr(major), major);
         if(NULL != minor && major > 0) {
-            php_printf("minor: ");
+            php_printf(" : ");
             php_debug_zval_dump(&minor, 0 TSRMLS_CC);
             zval_dtor(minor);
             efree(minor);
         }
+        else {
+            php_printf("\n");
+        }
+#endif
         //TODO call parser
     } while(major > 0);
 
