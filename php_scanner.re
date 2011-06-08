@@ -1,10 +1,62 @@
 #include <zend.h>
+#include <zend_API.h>
 #include <php.h>
 #include <php_scanner.h>
 #include <php_parser.h>
 #include <errno.h>
+#include "php_meta.h"
 //TODO remove
 #include <stdio.h>
+#include "ext/standard/php_var.h"
+
+int meta_scanner_descriptor;
+
+PHP_FUNCTION(meta_scanner_init) {
+    meta_scanner* scanner;
+    zval *rawsrc;
+    long flags;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl",
+            &rawsrc, &flags
+        )) {
+            WRONG_PARAM_COUNT;
+        }
+    //TODO also accept streams
+    scanner = meta_scanner_alloc(rawsrc, flags);
+    ZEND_REGISTER_RESOURCE(return_value, scanner, meta_scanner_descriptor);
+}
+
+PHP_FUNCTION(meta_scanner_get) {
+    zval *scanner_res;
+    TOKEN *token;
+    meta_scanner* scanner;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "r",
+        &scanner_res)) {
+            WRONG_PARAM_COUNT;
+    }
+    ZEND_FETCH_RESOURCE(scanner, meta_scanner*, &scanner_res, -1,
+        PHP_META_SCANNER_DESCRIPTOR_RES_NAME, meta_scanner_descriptor);
+    token = meta_scan(scanner TSRMLS_CC);
+    if(TOKEN_MAJOR(token) >= 0) {
+        php_printf("%s (%d) on LINES %d-%d", meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR(token), token->start_line, token->end_line);
+        if(TOKEN_MINOR(token)) {
+            php_printf(" : ");
+            php_debug_zval_dump( &TOKEN_MINOR(token), 0 TSRMLS_CC);
+        }
+        token_free(&token);
+        //TODO call parser
+    }
+    else {
+        //error reporting
+    }
+    RETURN_NULL();
+}
+
+void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
+    meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
+    meta_scanner_free(&scanner);
+}
+
+// ---------------------------- scanner internals --------------------------------
 
 #define YYCTYPE char
 #define STATE(name) yyc##name
@@ -24,7 +76,7 @@
 
 /*!max:re2c */
 
-meta_scanner* meta_scanner_alloc(zval* rawsrc, unsigned int flags) {
+META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
     meta_scanner *scanner;
     Z_STRVAL_P(rawsrc) = erealloc(Z_STRVAL_P(rawsrc), Z_STRLEN_P(rawsrc)+YYMAXFILL);
     memset(Z_STRVAL_P(rawsrc)+Z_STRLEN_P(rawsrc), 0, YYMAXFILL);
@@ -49,14 +101,15 @@ meta_scanner* meta_scanner_alloc(zval* rawsrc, unsigned int flags) {
     return scanner;
 }
 
-void meta_scanner_free(meta_scanner **scanner) {
+
+META_API void meta_scanner_free(meta_scanner **scanner) {
     zval_ptr_dtor(&((*scanner)->rawsrc));
     zend_llist_destroy((*scanner)->buffer);
     efree((*scanner)->buffer);
     efree(*scanner);
 }
 
-void ast_token_dtor(void *t) {
+META_API void ast_token_dtor(void *t) {
     TOKEN *tok;
     tok = *((TOKEN**)t);
     if(TOKEN_MAJOR(tok) > 0 && NULL != TOKEN_MINOR(tok)) {
@@ -64,7 +117,7 @@ void ast_token_dtor(void *t) {
     }
 }
 
-void token_free(TOKEN **t) {
+META_API void token_free(TOKEN **t) {
     ast_token_dtor(t);
     if(NULL != *t) {
         efree(*t);
@@ -119,7 +172,7 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     return t;
 }
 
-zval* meta_scanner_token_zval(TOKEN* t) {
+META_API zval* meta_scanner_token_zval(TOKEN* t) {
     zval* tzv;
     MAKE_STD_ZVAL(tzv);
     array_init(tzv);
@@ -138,7 +191,7 @@ zval* meta_scanner_token_zval(TOKEN* t) {
  * - TOKEN* with major 0 for EOI
  * - TOKEN* with major > 0 for tokens
  */
-TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
+META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
     //where the cursor was positioned the last time, before calling this function
     YYCTYPE* last_cursor;
     //the return value

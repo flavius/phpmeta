@@ -25,6 +25,8 @@ foreach($inputs as $title => $input) {
 function do_test($title, $input) {
     echo "\t\t$title for: '$input'\n";
     echo "=======================================================\n";
-    meta_test($input);
+    $scanner = meta_scanner_init($input, 0);
+    meta_scanner_get($scanner);
+    unset($scanner);
     echo PHP_EOL, PHP_EOL;
 }

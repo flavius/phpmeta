@@ -13,4 +13,6 @@
 extern zend_module_entry meta_module_entry;
 #define phpext_meta_ptr &meta_module_entry
 
+#define META_API
+
 #endif //PHP_META_H

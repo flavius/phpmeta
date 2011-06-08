@@ -63,7 +63,7 @@ typedef struct _meta_scanner {
     unsigned int err_no;
 } meta_scanner;
 
-meta_scanner* meta_scanner_alloc(zval*, unsigned int flags);
+meta_scanner* meta_scanner_alloc(zval*, long flags);
 void meta_scanner_free(meta_scanner **scanner);
 TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC);
 
@@ -72,6 +72,14 @@ zval* meta_scanner_token_zval(TOKEN* t);
 #define ERR_NONE 0
 #define ERR_UNITIALIZED 1
 #define ERR_FILLOVERFLOW 2
+
+
+//----------------------------- extension-wide symbols ------------------------------
+#define PHP_META_SCANNER_DESCRIPTOR_RES_NAME "Meta Scanner"
+extern int meta_scanner_descriptor;
+PHP_FUNCTION(meta_scanner_init);
+PHP_FUNCTION(meta_scanner_get);
+void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC);
 
 #endif
 /*

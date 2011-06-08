@@ -36,19 +36,24 @@ PHP_FUNCTION(meta_test) {
             //error reporting
         }
     } while(major > 0);
-
     meta_scanner_free(&scanner);
 }
 
 static function_entry php_meta_functions[] = {
     PHP_FE(meta_test, NULL)
+    PHP_FE(meta_scanner_init, NULL)
+    PHP_FE(meta_scanner_get, NULL)
     {NULL, NULL, NULL}
 };
 
 //TODO detect if the token ext is activated, if no, activate backwards compatibility
 //TODO expose both the scanner and the parser to the runtime
+
 PHP_MINIT_FUNCTION(meta) {
     //TODO init meta ast node
+    meta_scanner_descriptor = zend_register_list_destructors_ex(
+            php_meta_scanner_dtor, NULL,
+            PHP_META_SCANNER_DESCRIPTOR_RES_NAME, module_number);
     return SUCCESS;
 }
 
