@@ -1,10 +1,9 @@
 set confirm off
 set breakpoint pending on
 
-break php_scanner.re:193
-break meta_scan
+break zif_meta_test
 
-set args -f test.php
+set args -r 'meta_test("hello");'
 set logging on
 set logging overwrite on
 

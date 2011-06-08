@@ -1,9 +1,13 @@
 %include {
 #ifndef NDEBUG
+
+#include <assert.h>
+
 static const char *const yyTokenName[];
 const char* meta_token_repr(int n) {
     return yyTokenName[n];
 }
+
 #endif
 }
 %start_symbol start

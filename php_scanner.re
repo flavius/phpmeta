@@ -1,260 +1,321 @@
 #include <zend.h>
-#include <string.h>
-#include <stdlib.h> //strtol()
-#include "php_meta.h"
-#include "php_scanner_defs.h"
-#include "php_scanner.h"
-#include "php_parser.h"
+#include <php.h>
+#include <php_scanner.h>
+#include <php_parser.h>
+#include <errno.h>
+//TODO remove
+#include <stdio.h>
 
 #define YYCTYPE char
 #define STATE(name) yyc##name
+#define ST_NAME(name) STATE(ST_ ## name)
 
-#define RE2CDBG 0
-#define METADBG 1
-
-#if RE2CDBG
-#define META_DEBUG(code, msg) php_printf("lex: #%d '%c'(%d)\n", code, msg, msg)
-#else 
-#define META_DEBUG(code, msg)
-#endif
-
-#if METADBG
-#define PRINT_DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
+#ifdef DEBUG
+# if 0
+#  define DBG_SCANNER(state, c) php_printf("\t\t\tlex state %d, cursor '%c'(%d)\n", state, c, c)
+# else
+#  define DBG_SCANNER(state, c)
+# endif
+#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
 #else
-#define PRINT_DBG(fmt, args...) 
+#define DBG_SCANNER(state, c)
+#define PRINT_DBG(fmt, args...)
 #endif
-
 
 /*!max:re2c */
 
-meta_scanner* meta_scanner_alloc(zval* src) {
-    meta_scanner *r;
-    char *lim;
-    zend_bool free_raw=0;//TODO remove
-    Z_STRVAL_P(src) = erealloc(Z_STRVAL_P(src), Z_STRLEN_P(src) + YYMAXFILL);
-    //Z_SET_REFCOUNT_P(src, 0);
-    memset(Z_STRVAL_P(src)+Z_STRLEN_P(src), 0, YYMAXFILL);
-    lim = Z_STRVAL_P(src) + YYMAXFILL + Z_STRLEN_P(src) - 1;
-    r = emalloc(sizeof(meta_scanner));
-    r->free_raw = free_raw = 0;
-    r->src = Z_STRVAL_P(src);
-    r->src_len = Z_STRLEN_P(src);
-    r->cursor = r->src;
-    r->marker = r->cursor;
-    r->ctxmarker = NULL;
-    r->state = STATE(ST_INITIAL);
-    r->position = 0;
-    r->limit = lim;
-    r->buffer_majors = NULL;
-    r->buffer_minors = NULL;
-    r->buffer_size = 0;
-    return r;
+meta_scanner* meta_scanner_alloc(zval* rawsrc, unsigned int flags) {
+    meta_scanner *scanner;
+    Z_STRVAL_P(rawsrc) = erealloc(Z_STRVAL_P(rawsrc), Z_STRLEN_P(rawsrc)+YYMAXFILL);
+    memset(Z_STRVAL_P(rawsrc)+Z_STRLEN_P(rawsrc), 0, YYMAXFILL);
+
+    scanner = emalloc(sizeof(meta_scanner));
+    scanner->limit = Z_STRVAL_P(rawsrc) + Z_STRLEN_P(rawsrc) + YYMAXFILL - 1;
+    scanner->src = Z_STRVAL_P(rawsrc);
+    scanner->src_len = Z_STRLEN_P(rawsrc);
+    zval_add_ref(&rawsrc);
+    scanner->cursor = scanner->ctxmarker = scanner->marker = scanner->src;
+
+    scanner->state = STATE(ST_INITIAL);
+    scanner->position = 0;
+    scanner->line_no = 1;
+    scanner->rawsrc = rawsrc;
+    scanner->flags = flags;
+    scanner->err_no = ERR_NONE;
+
+    scanner->buffer = emalloc(sizeof(zend_llist));
+    zend_llist_init(scanner->buffer, sizeof(TOKEN*), ast_token_dtor, 0);
+
+    return scanner;
 }
 
-void meta_scanner_destroy(meta_scanner** scanner) {
-    if((*scanner)->free_raw) {
-        efree((*scanner)->src);
-    }
-    size_t i;
-    for(i=0; i < (*scanner)->buffer_size; i++) {
-        if((*scanner)->buffer_minors[i] == NULL) {
-            continue;
-        }
-        zval_dtor((*scanner)->buffer_minors[i]);
-        efree((*scanner)->buffer_minors[i]);
-    }
-    if((*scanner)->buffer_size) {
-        efree((*scanner)->buffer_majors);
-        efree((*scanner)->buffer_minors);
-    }
+void meta_scanner_free(meta_scanner **scanner) {
+    zval_ptr_dtor(&((*scanner)->rawsrc));
+    zend_llist_destroy((*scanner)->buffer);
+    efree((*scanner)->buffer);
     efree(*scanner);
 }
 
-//TODO out of memory checking
-int meta_scanner_pushtoken(meta_scanner* scanner, int major, zval* minor) {
-    scanner->buffer_minors = erealloc(scanner->buffer_minors, sizeof(zval*) * (scanner->buffer_size+1));
-    scanner->buffer_majors = erealloc(scanner->buffer_majors, sizeof(major) * (scanner->buffer_size+1));
-    scanner->buffer_minors[scanner->buffer_size] = minor;
-    scanner->buffer_majors[scanner->buffer_size] = major;
-    scanner->buffer_size++;
-    return 1;
+void ast_token_dtor(void *t) {
+    TOKEN *tok;
+    tok = *((TOKEN**)t);
+    if(TOKEN_MAJOR(tok) > 0 && NULL != TOKEN_MINOR(tok)) {
+        zval_ptr_dtor(&((tok)->minor));
+    }
 }
 
-zval* meta_scanner_poptoken(meta_scanner* scanner, int* major) {
-    zval *minor;
-    if(0 == scanner->buffer_size) {
-        return NULL;
+void token_free(TOKEN **t) {
+    ast_token_dtor(t);
+    if(NULL != *t) {
+        efree(*t);
     }
-    scanner->buffer_size--;
-    *major = scanner->buffer_majors[scanner->buffer_size];
-    minor = scanner->buffer_minors[scanner->buffer_size];
-    if(scanner->buffer_size) {
-        scanner->buffer_minors = erealloc(scanner->buffer_minors, sizeof(zval*) * (scanner->buffer_size));
-        scanner->buffer_majors = erealloc(scanner->buffer_majors, sizeof(int) * (scanner->buffer_size));
-    }
-    else {
-        efree(scanner->buffer_minors);
-        efree(scanner->buffer_majors);
-        scanner->buffer_majors = NULL;
-        scanner->buffer_minors = NULL;
-    }
-    return minor;
 }
 
-static inline int is_start_tag(meta_scanner* s) {
-    //TODO return 0 if not, X for each PHP_STARTx, taking scanner's flags into account
-    if('<' == *s->cursor) return 1;
-    return 0;
+TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
+    TOKEN* t;
+    int errcode=0;
+    long number;
+
+    t = emalloc(sizeof(TOKEN));
+    TOKEN_MAJOR(t) = major;
+    TOKEN_MINOR(t) = NULL;
+    t->dirty = 0;
+    t->start_line = 0;
+    t->end_line = 0;
+    DBG("major: %d", major);
+    switch(major) {
+        case 0:
+        case T_PLUS:
+            break;
+        case T_OUTSIDE_SCRIPTING:
+        case T_OPEN_TAG:
+        case T_WHITESPACE:
+        case T_CLOSE_TAG:
+            MAKE_STD_ZVAL(TOKEN_MINOR(t));
+            ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+            break;
+        case T_LNUMBER:
+            MAKE_STD_ZVAL(TOKEN_MINOR(t));
+            if(HAS_FLAG(scanner, CHECK_OVERFLOWS)) {
+                errno = 0;
+                number = strtol(start, NULL, 0);
+                errcode = errno;
+                ZVAL_LONG(TOKEN_MINOR(t), number);
+                if(ERANGE == errcode) {
+                    t->dirty = 1;
+                    //TODO remove me
+                    perror(NULL);
+                    //TODO do we want the original input as string, or INT_MAX as now?
+                }
+            }
+            else {
+                ZVAL_LONG(TOKEN_MINOR(t), strtol(start, NULL, 0));
+            }
+            break;
+        default:
+            MAKE_STD_ZVAL(TOKEN_MINOR(t));
+            ZVAL_STRINGL(TOKEN_MINOR(t), "UNKNOWN", sizeof("UNKNOWN"), 1);
+    }
+    return t;
 }
 
+zval* meta_scanner_token_zval(TOKEN* t) {
+    zval* tzv;
+    MAKE_STD_ZVAL(tzv);
+    array_init(tzv);
+    add_assoc_long(tzv, "major", TOKEN_MAJOR(t));
+    return tzv;
+}
 
+#define TOKENS_COUNT(scanner) zend_llist_count(scanner->buffer)
+#define TOKEN_PUSH(scanner, tok) if(TOKEN_MINOR(tok)) zval_add_ref(&TOKEN_MINOR(tok)); zend_llist_add_element(scanner->buffer, &tok)
+#define TOKEN_POP(scanner) *(TOKEN**)zend_llist_get_last_ex(scanner->buffer, NULL); zend_llist_remove_tail(scanner->buffer)
 
-//TODO return int
-int meta_scan(meta_scanner* scanner, zval** minor TSRMLS_DC) {
-    char* last_cursor;
-    int major;
+/**
+ * return
+ * - NULL in case of an unrecoverable error, the scanner's err_no will be set
+ * - TOKEN* with major < 0 in case of a regular error, specific to a token
+ * - TOKEN* with major 0 for EOI
+ * - TOKEN* with major > 0 for tokens
+ */
+TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
+    //where the cursor was positioned the last time, before calling this function
+    YYCTYPE* last_cursor;
+    //the return value
+    TOKEN* token;
+
     //enables some rules to share code
     int transient_delta;
-    //fixing side-effects of calling yymore();
-    zend_bool is_more;
+    //if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor;
+    unsigned int last_line_no;
+    //some rules have "siblings", the first one only advances the cursor, the second actually creates a token;
+    //this flag is true if the first sibling has already been active
+    zend_bool sibling_was_active;
 
+//interface macros
 #define YYCURSOR scanner->cursor
 #define YYLIMIT scanner->limit
 #define YYMARKER scanner->marker
 #define YYCTXMARKER scanner->ctxmarker
-//TODO return -1
-//#define YYFILL(n) { PRINT_DBG("fill %d\n", n); if(YYCURSOR + n-1 > YYLIMIT) return -1; PRINT_DBG("filled\n"); }
-#define YYFILL(n) { if(YYCURSOR + n-1 > YYLIMIT) return ERR_FILLOVERFLOW; }
-//#define YYFILL(n) { PRINT_DBG("fill %d\n", n); if(!(YYCURSOR + n > YYLIMIT)) PRINT_DBG("filled\n"); }
+
+#define YYFILL(n) { if(YYCURSOR + n-1 > YYLIMIT) { scanner->err_no = ERR_FILLOVERFLOW; return NULL; } }
 #define YYGETCONDITION() scanner->state
-#define YYSETCONDITION(s) scanner->state = s
-#define SETSTATE(s) YYSETCONDITION(STATE(s))
+#define YYSETCONDITION(cond) scanner->state = cond
 
-#define yymore() is_more = 1; goto lex_start
-#define yyless() YYCURSOR--; goto lex_start;
-//ignore the current terminal
-#define yyrerun() goto lex_root
-#define RETURN(m) major = m; goto lex_end;
+//enter a new state
+#define SETSTATE(st) YYSETCONDITION(ST_NAME(st))
+//jumping around 
+#define yymore() goto lex_start
+#define yyless() YYCURSOR--; goto lex_start
 
-
-if(scanner->buffer_size) {
-    *minor = meta_scanner_poptoken(scanner, &major);
-    //TODO increment the number of lexemes of the scanner
-    RETURN(major);
-}
+#ifdef DEBUG
+#define RETURN(tok) if(NULL != token) php_printf("\n\n\n\tyou are giving up a token! (line %d)\n\n\n", __LINE__); \
+    token = tok; goto lex_end
+#else
+#define RETURN(tok)
+#endif
 
 lex_root:
-    last_cursor = scanner->cursor;
-    *minor = NULL;
-    major=ERR_UNITIALIZED;
-    is_more = 0;
+    token = NULL;
+if(TOKENS_COUNT(scanner)) {
+    token = TOKEN_POP(scanner);
+    goto lex_end;
+}
+    last_cursor = YYCURSOR;
+    last_line_no = scanner->line_no;
+    sibling_was_active = 0;
 
 /*!re2c
-re2c:define:YYDEBUG = META_DEBUG;
+re2c:define:YYDEBUG = DBG_SCANNER;
 re2c:yyfill:check = 0;
 LNUM    [0-9]+
 DNUM    ([0-9]*"."[0-9]+)|([0-9]+"."[0-9]*)
 EXPONENT_DNUM   (({LNUM}|{DNUM})[eE][+-]?{LNUM})
 HNUM    "0x"[0-9a-fA-F]+
 LABEL   [a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*
-WHITESPACE [ \n\r\t]+
-TABS_AND_SPACES [ \t]*
+WHITESPACE [ \n\r\t]
+TABS_AND_SPACES [ \t]
 TOKENS [;:,.\[\]()|^&+-/*=%!~$<>?@]
 ANY_CHAR [^]
 EOI [\000]
 NEWLINE ("\r"|"\n"|"\r\n")
 PHP_START "<?php"
 PHP_START_EX ("<?="|"<?"|"<%="|"<%")
+PHP_STOP ("?>"|"%>")
 */
 
-//TODO flags to set for T_OPEN_TAG: IS_SHORT IS_ASP IS_ECHO EOL_PLATFORM {"unix", "windows", "mac"}
-
 lex_start:
-//<!*> := PRINT_DBG("new LEXEME\n"); //TODO increment scanner's lexemes count
 /*!re2c
-
 <ST_INITIAL>{ANY_CHAR} {
-    if(*YYCURSOR == '\0') {//TODO more detection so we're not hampered by NULs in input
-        if(scanner->src_len == 0) {
-            minor = NULL;
-            RETURN(0);
-        }
-        meta_scanner_pushtoken(scanner, 0, NULL);
-        MAKE_STD_ZVAL(*minor);
-        ZVAL_STRINGL(*minor, last_cursor, YYCURSOR - last_cursor, 1);
-        RETURN(T_OUTSIDE_SCRIPTING);
+    if(YYCURSOR > YYLIMIT - YYMAXFILL) {
+        TOKEN *outside;
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor);
+        TOKEN *eoi;
+        eoi = ast_token_ctor(scanner, 0, NULL, 0);
+        TOKEN_PUSH(scanner, eoi);
+        RETURN(outside);
     }
     else {
         yymore();
     }
 }
+
 <ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
-    transient_delta=5;
-do_start:
-    SETSTATE(ST_IN_SCRIPTING);
-    zval* open_tag=NULL;
-    MAKE_STD_ZVAL(open_tag);
-    ZVAL_STRINGL(open_tag, YYCURSOR - transient_delta, transient_delta, 1);
+    transient_delta = 5;
+do_transient_start:
+    SETSTATE(IN_SCRIPTING);
+    TOKEN *open_tag;
+    open_tag = ast_token_ctor(scanner, T_OPEN_TAG, YYCURSOR - transient_delta, transient_delta);
     if(last_cursor == YYCURSOR - transient_delta) {
-        *minor = open_tag;
-        RETURN(T_OPEN_TAG);
+        RETURN(open_tag);
     }
     else {
-        PRINT_DBG("OUTSIDE_SCRIPTING");
-        meta_scanner_pushtoken(scanner, T_OPEN_TAG, open_tag);
-        MAKE_STD_ZVAL(*minor);
-        ZVAL_STRINGL(*minor, last_cursor, YYMARKER - last_cursor - 2, 1);
-        RETURN(T_OUTSIDE_SCRIPTING);
+        TOKEN_PUSH(scanner, open_tag);
+        TOKEN* outside;
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2);
+        RETURN(outside);
     }
-    PRINT_DBG("PHP_START");
 }
 
 <ST_INITIAL>{PHP_START_EX} {
-    PRINT_DBG("PHP_START_EX");
-    //TODO check if asp_tags on
-    if('=' == *(YYCURSOR-1)) {//TODO && scanner.short_open_tags, otherwise pass through as HTML
-        transient_delta = 3;
+    transient_delta = 2;
+    if('=' == *(YYCURSOR-1)) {
+        transient_delta++;
+    }
+    if( (HAS_FLAG(scanner, SHORT_OPEN_TAG) && '?' == *(YYCURSOR - transient_delta + 1)) ||
+        (HAS_FLAG(scanner, ASP_TAGS) && '%' == *(YYCURSOR - transient_delta + 1)) ) {
+            goto do_transient_start;
     }
     else {
-        transient_delta = 2;
+        yymore();
     }
-    goto do_start;
+}
+<ST_IN_SCRIPTING>{PHP_STOP} {
+    TOKEN *stop;
+    SETSTATE(INITIAL);
+    stop = ast_token_ctor(scanner, T_CLOSE_TAG, last_cursor, YYCURSOR - last_cursor);
+    RETURN(stop);
 }
 <ST_IN_SCRIPTING>{EOI} {
-    RETURN(0);
+    TOKEN *eoi;
+    eoi = ast_token_ctor(scanner, 0, NULL, 0);
+    RETURN(eoi);
 }
-<ST_IN_SCRIPTING>{TABS_AND_SPACES} {
-    //TODO if tabs and spaces, fill them, else yyrerun()
-    PRINT_DBG("indentation '%s' '%c'\n", last_cursor, *YYCURSOR);
-    MAKE_STD_ZVAL(*minor);
-    ZVAL_STRINGL(*minor, last_cursor, YYCURSOR - last_cursor, 1);
-    RETURN(T_WHITESPACE);
+/* ***** processing tokens which can be merged ***** */
+<ST_IN_SCRIPTING>{TABS_AND_SPACES}+|{NEWLINE}/{TABS_AND_SPACES}|{NEWLINE} {
+    sibling_was_active = 1;
+    if(' ' != *(YYCURSOR -1) || '\t' != *(YYCURSOR - 1)) {
+        scanner->line_no++;
+    }
+    yymore();
 }
-<ST_IN_SCRIPTING>{NEWLINE} {
-    //TODO adjust line number, then if newline-as-lexeme, RETURN(T_NEWLINE), else yyrerun()
+<ST_IN_SCRIPTING>{TABS_AND_SPACES}+|{NEWLINE} {
+    if(!HAS_FLAG(scanner, IGNORE_WHITESPACE)) {
+        TOKEN *ws;
+        ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor);
+        ws->end_line = scanner->line_no;
+        if(' ' != *(YYCURSOR -1) && '\t' != *(YYCURSOR - 1)) {
+            scanner->line_no++;
+            if(!sibling_was_active) {
+               ws->end_line++;
+            }
+        }
+        RETURN(ws);
+    }
+    else {
+        yymore();
+    }
 }
 
+/* ***** "top" tokens ***** */
 <ST_IN_SCRIPTING>{LNUM} {
-    MAKE_STD_ZVAL(*minor);
-    char* end;
-    ZVAL_LONG(*minor, strtol(last_cursor, &end, 0));
-    PRINT_DBG("lnumber '%s' last: '%c'\n", last_cursor, *end);
-    return T_LNUMBER;
+    TOKEN* num;
+    DBG("T_LNUMBER");
+    num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor);
+    RETURN(num);
 }
-<ST_IN_SCRIPTING>{TABS_AND_SPACES} {
-    //TODO check if whitespace is wanted
-    MAKE_STD_ZVAL(*minor);
-    ZVAL_STRINGL(*minor, last_cursor, YYCURSOR - last_cursor, 1);
-    return T_WHITESPACE;
+<ST_IN_SCRIPTING>"+" {
+    TOKEN *plus;
+    plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor);
+    RETURN(plus);
 }
-<ST_IN_SCRIPTING>"?>" {
-    PRINT_DBG("out of scripting '%s'\n", last_cursor);
-    SETSTATE(ST_INITIAL);
-    return T_CLOSE_TAG;
-}
+/*
+
+these could be merged
+<ST_IN_SCRIPTING>{TABS_AND_SPACES}+
+<ST_IN_SCRIPTING>{NEWLINE}
+
+TODO states:
+ST_BACKQUOTE ST_DOUBLE_QUOTES ST_END_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET ST_LOOKING_FOR_PROPERTY ST_LOOKING_FOR_VARNAME ST_NOWDOC
 */
 
+*/
 lex_end:
-//TODO prepare minor, eventually based on hooks
-    return major;
+    if(!token->start_line) {
+        token->start_line = last_line_no;
+    }
+    if(!token->end_line) {
+        token->end_line = scanner->line_no;
+    }
+    return token;
 }

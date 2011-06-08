@@ -1,15 +1,30 @@
 <?php
 $inputs = array(
-    'empty' => '',
-    'html only' => 'hello world',
-    'empty processing' => '<?php',
-    'processing' => '<?php 42',
-    'processing and inline html' => 'abc<?php 42',
+    'abc<?php 42',
+    'a<?php 42?>b<? 43?>',
+    'hello',
+    'abc<?= 42',
+    "<?php\n42",
+    "<?php\n \n42",
+    "<?php 41+42",
 );
+//$inputs[] = file_get_contents('bininput.php');
+
+$last = TRUE;
+
+if($last) {
+    end($inputs);
+    do_test(key($inputs), current($inputs));
+    die();
+}
 
 foreach($inputs as $title => $input) {
-    echo $title, PHP_EOL;
-    echo "================================================", PHP_EOL;
+    do_test($title, $input);
+}
+
+function do_test($title, $input) {
+    echo "\t\t$title for: '$input'\n";
+    echo "=======================================================\n";
     meta_test($input);
-    echo PHP_EOL;
+    echo PHP_EOL, PHP_EOL;
 }

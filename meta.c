@@ -4,43 +4,40 @@
 #include "ext/standard/php_var.h"
 #include "php_meta.h"
 #include "php_scanner.h"
-#include "php_parser.h"
+#include "php_parser.h" //meta_token_repr
 
-#define DEBUG
+//#define DEBUG
 
 PHP_FUNCTION(meta_test) {
     zval *src;
     meta_scanner* scanner;
+    TOKEN *token;
     int major;
-    zval* minor;
 
     php_printf("--------------------------------------\n");
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &src)) {
         WRONG_PARAM_COUNT;
     }
-    //TODO check if string
-    /*if(!Z_STRLEN_P(src)) {*/
-        /*RETURN_NULL();*/
-    /*}*/
-    scanner = meta_scanner_alloc(src);
+    scanner = meta_scanner_alloc(src, SFLAGS_STRICT);
+    major = 1;
     do {
-        major = meta_scan(scanner, &minor TSRMLS_CC);
-#ifdef DEBUG
-        php_printf("%s (%d)", meta_token_repr(major), major);
-        if(NULL != minor && major > 0) {
-            php_printf(" : ");
-            php_debug_zval_dump(&minor, 0 TSRMLS_CC);
-            zval_dtor(minor);
-            efree(minor);
+        token = meta_scan(scanner TSRMLS_CC);
+        major = TOKEN_MAJOR(token);
+        if(major >= 0) {
+            php_printf("%s (%d) on LINES %d-%d", meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR(token), token->start_line, token->end_line);
+            if(TOKEN_MINOR(token)) {
+                php_printf(" : ");
+                php_debug_zval_dump( &TOKEN_MINOR(token), 0 TSRMLS_CC);
+            }
+            token_free(&token);
+            //TODO call parser
         }
         else {
-            php_printf("\n");
+            //error reporting
         }
-#endif
-        //TODO call parser
     } while(major > 0);
 
-    meta_scanner_destroy(&scanner);
+    meta_scanner_free(&scanner);
 }
 
 static function_entry php_meta_functions[] = {
@@ -48,6 +45,8 @@ static function_entry php_meta_functions[] = {
     {NULL, NULL, NULL}
 };
 
+//TODO detect if the token ext is activated, if no, activate backwards compatibility
+//TODO expose both the scanner and the parser to the runtime
 PHP_MINIT_FUNCTION(meta) {
     //TODO init meta ast node
     return SUCCESS;

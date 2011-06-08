@@ -2,14 +2,37 @@
 #define META_SCANNER_H
 
 #include <zend.h>
+#include "php_scanner_defs.h"
 
-typedef struct _ast_token {
+typedef struct _token {
     int major;
     zval *minor;
-} ast_token;
+    zend_bool dirty;
+    unsigned int start_line;
+    unsigned int end_line;
+} TOKEN;
+
+#define TOKEN_MAJOR(t) (((TOKEN*)t)->major)
+#define TOKEN_MINOR(t) (((TOKEN*)t)->minor)
+
+//useful for zendll
+void ast_token_dtor(void *token);
+void token_free(TOKEN **t);
+
+#define SFLAG_SHORT_OPEN_TAG    0x1
+#define SFLAG_ASP_TAGS          0x1<<1
+#define SFLAG_CHECK_OVERFLOWS   0x1<<2
+#define SFLAG_MERGE_WHITESPACE  0x1<<3
+#define SFLAG_MERGE_NEWLINES    0x1<<4
+#define SFLAG_IGNORE_WHITESPACE 0x1<<5
+
+#define SFLAGS_MOST SFLAG_SHORT_OPEN_TAG | SFLAG_ASP_TAGS
+#define SFLAGS_STRICT SFLAG_CHECK_OVERFLOWS
+
+#define HAS_FLAG(scanner, flag) (scanner->flags & SFLAG_ ##flag)
 
 typedef struct _meta_scanner {
-    //zval* rawsrc;
+    zval* rawsrc;
     char *src;
     size_t src_len;
     char* marker;
@@ -17,28 +40,53 @@ typedef struct _meta_scanner {
     char* cursor;
     char* limit;
     int state;
-    zend_bool free_raw;
+    //zend_bool free_raw;
     //if stream-based source, the position of cursor
     int position;
+    //the line number
+    unsigned int line_no;
+    zend_llist *buffer;
     //sometimes the scanner looks too far ahead and
     //when it does so, it caches the previous tokens
-    int* buffer_majors;
-    zval** buffer_minors;
-    size_t buffer_size;
     //TODO add streams
     //TODO add TSRM
-    //TODO different flags as to process comments or whitespaces, etc
+    /* flags:
+     * short_open_tag
+     * asp_tags
+     * check_overflows (check numeric overflows)
+     * merge_newlines (EOL + EOL + ...) become one single EOL
+     * merge_whitespace (SPACE + EOL + SPACE + SPACE + EOL + ...) become one single T_WHITESPACE
+     * ignore_whitespaces (ignore SPACEs and EOLs)
+     * TODO: ignore comments
+     */
+    unsigned int flags;//see SFLAG_ above
+    unsigned int err_no;
 } meta_scanner;
 
+meta_scanner* meta_scanner_alloc(zval*, unsigned int flags);
+void meta_scanner_free(meta_scanner **scanner);
+TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC);
 
-meta_scanner* meta_scanner_alloc(zval*);
-int meta_scan(meta_scanner* scanner, zval** minor TSRMLS_DC);
-void meta_scanner_destroy(meta_scanner** scanner);
-int meta_scanner_pushtoken(meta_scanner* scanner, int major, zval* minor);
-zval* meta_scanner_poptoken(meta_scanner* scanner, int* major);
-
+zval* meta_scanner_token_zval(TOKEN* t);
 //return codes for meta_scan
-#define ERR_UNITIALIZED -1
-#define ERR_FILLOVERFLOW -2
+#define ERR_NONE 0
+#define ERR_UNITIALIZED 1
+#define ERR_FILLOVERFLOW 2
 
 #endif
+/*
+ * the big TODO list
+ * token types and their attributes:
+ * T_OUTSIDE_SCRIPTING
+ *  - start_line
+ *  - end_line
+ * T_OPEN_TAG
+ * T_WHITESPACE
+ *  - start_line
+ *  - end_line (if we have flag merge_whitespace_newline)
+ * T_NEWLINE
+ *  - start_line
+ *  - end_line (if we have flag merge_newlines)
+ * T_LNUMBER
+ *  - overflow (bool, if we have flag check_overflows)
+ */
