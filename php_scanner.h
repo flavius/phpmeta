@@ -58,13 +58,12 @@ typedef struct _meta_scanner {
     int position;
     //the line number
     unsigned int line_no;
-    zend_ptr_stack *buffer;
-    //zend_llist *buffer;
     //sometimes the scanner looks too far ahead and
     //when it does so, it caches the previous tokens
-    //TODO add streams
+    zend_ptr_stack *buffer;
     unsigned int flags;//see SFLAG_ above
     unsigned int err_no;
+    //TODO add streams
 } meta_scanner;
 
 meta_scanner* meta_scanner_alloc(zval*, long flags);
