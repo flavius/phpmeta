@@ -82,7 +82,7 @@ void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
 META_API zval* meta_token_zval(TOKEN *token) {
     zval* tok_repr;
     MAKE_STD_ZVAL(tok_repr);
-    array_init_size(tok_repr, 5);
+    array_init_size(tok_repr, 8);//8 instead of 5, so zend_hash_init doesn't need to round up
     add_assoc_long(tok_repr, "major", token->major);
     add_assoc_bool(tok_repr, "dirty", token->dirty);
     add_assoc_long(tok_repr, "start_line", token->start_line);
@@ -98,7 +98,7 @@ META_API zval* meta_token_zval(TOKEN *token) {
 }
 
 META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
-    array_init_size(tok_repr, 5);
+    array_init_size(tok_repr, 8);//8 instead of 5, so zend_hash_init doesn't need to round up
     add_assoc_long(tok_repr, "major", token->major);
     add_assoc_bool(tok_repr, "dirty", token->dirty);
     add_assoc_long(tok_repr, "start_line", token->start_line);
