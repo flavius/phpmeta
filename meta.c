@@ -50,6 +50,7 @@ PHP_MINIT_FUNCTION(meta) {
     meta_scanner_descriptor = zend_register_list_destructors_ex(
             php_meta_scanner_dtor, NULL,
             PHP_META_SCANNER_DESCRIPTOR_RES_NAME, module_number);
+    zend_register_long_constant("META_SFLAG_SHORT_OPEN_TAG", sizeof("META_SFLAG_SHORT_OPEN_TAG"), SFLAG_SHORT_OPEN_TAG, CONST_CS|CONST_PERSISTENT, module_number TSRMLS_CC);
     return SUCCESS;
 }
 
