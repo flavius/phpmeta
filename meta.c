@@ -14,7 +14,6 @@ PHP_FUNCTION(meta_test) {
     TOKEN *token;
     int major;
 
-    php_printf("--------------------------------------\n");
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &src)) {
         WRONG_PARAM_COUNT;
     }
@@ -24,13 +23,9 @@ PHP_FUNCTION(meta_test) {
         token = meta_scan(scanner TSRMLS_CC);
         major = TOKEN_MAJOR(token);
         if(major >= 0) {
-            php_printf("%s (%d) on LINES %d-%d", meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR(token), token->start_line, token->end_line);
-            if(TOKEN_MINOR(token)) {
-                php_printf(" : ");
-                php_debug_zval_dump( &TOKEN_MINOR(token), 0 TSRMLS_CC);
-            }
-            token_free(&token);
             //TODO call parser
+            //token_free(&token);
+            ast_token_dtor(token);
         }
         else {
             //error reporting
@@ -43,6 +38,7 @@ static function_entry php_meta_functions[] = {
     PHP_FE(meta_test, NULL)
     PHP_FE(meta_scanner_init, NULL)
     PHP_FE(meta_scanner_get, NULL)
+    PHP_FE(meta_scanner_token_name, NULL)
     {NULL, NULL, NULL}
 };
 

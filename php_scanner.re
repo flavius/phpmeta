@@ -35,25 +35,81 @@ PHP_FUNCTION(meta_scanner_get) {
     }
     ZEND_FETCH_RESOURCE(scanner, meta_scanner*, &scanner_res, -1,
         PHP_META_SCANNER_DESCRIPTOR_RES_NAME, meta_scanner_descriptor);
+    if(scanner->err_no != ERR_NONE) {
+        RETURN_NULL();
+    }
     token = meta_scan(scanner TSRMLS_CC);
+    meta_token_zval_ex(token, return_value);
+    ast_token_dtor(token);
+
+    /*
     if(TOKEN_MAJOR(token) >= 0) {
-        php_printf("%s (%d) on LINES %d-%d", meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR(token), token->start_line, token->end_line);
+        //TODO actually return the tokens, not just dump them to stdout
+        php_printf("%s (%d) on LINES %ld-%ld", meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR(token), token->start_line, token->end_line);
         if(TOKEN_MINOR(token)) {
             php_printf(" : ");
             php_debug_zval_dump( &TOKEN_MINOR(token), 0 TSRMLS_CC);
         }
-        token_free(&token);
-        //TODO call parser
+        if(TOKEN_MAJOR(token) == 0) {
+            RETVAL_FALSE;
+        }
+        else {
+            RETVAL_TRUE;
+        }
+        ast_token_dtor(token);
     }
     else {
-        //error reporting
+        //RETURN_NULL();
+        //TODO error reporting
     }
-    RETURN_NULL();
+    */
+}
+
+PHP_FUNCTION(meta_scanner_token_name) {
+    long num;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l",
+        &num)) {
+        WRONG_PARAM_COUNT;
+    }
+    RETURN_STRING(meta_token_repr(num), 1);
 }
 
 void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
     meta_scanner_free(&scanner);
+}
+
+META_API zval* meta_token_zval(TOKEN *token) {
+    zval* tok_repr;
+    MAKE_STD_ZVAL(tok_repr);
+    array_init_size(tok_repr, 5);
+    add_assoc_long(tok_repr, "major", token->major);
+    add_assoc_bool(tok_repr, "dirty", token->dirty);
+    add_assoc_long(tok_repr, "start_line", token->start_line);
+    add_assoc_long(tok_repr, "end_line", token->end_line);
+    if(NULL != TOKEN_MINOR(token)) {
+        zval_add_ref(&token->minor);
+        add_assoc_zval(tok_repr, "minor", token->minor);
+    }
+    else {
+        add_assoc_null(tok_repr, "minor");
+    }
+    return tok_repr;
+}
+
+META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
+    array_init_size(tok_repr, 5);
+    add_assoc_long(tok_repr, "major", token->major);
+    add_assoc_bool(tok_repr, "dirty", token->dirty);
+    add_assoc_long(tok_repr, "start_line", token->start_line);
+    add_assoc_long(tok_repr, "end_line", token->end_line);
+    if(NULL != TOKEN_MINOR(token)) {
+        zval_add_ref(&token->minor);
+        add_assoc_zval(tok_repr, "minor", token->minor);
+    }
+    else {
+        add_assoc_null(tok_repr, "minor");
+    }
 }
 
 // ---------------------------- scanner internals --------------------------------
@@ -62,13 +118,15 @@ void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
 #define STATE(name) yyc##name
 #define ST_NAME(name) STATE(ST_ ## name)
 
+#define IS_EOL(c) *(c) == '\n' || (*(c) == '\r' && *((c)+1) != '\n')
+
 #ifdef DEBUG
 # if 0
 #  define DBG_SCANNER(state, c) php_printf("\t\t\tlex state %d, cursor '%c'(%d)\n", state, c, c)
 # else
 #  define DBG_SCANNER(state, c)
 # endif
-#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
+#define DBG(fmt, args...) php_printf("\t\t(pos %d)\t", YYCURSOR - scanner->src); php_printf(fmt, ## args); php_printf("\n")
 #else
 #define DBG_SCANNER(state, c)
 #define PRINT_DBG(fmt, args...)
@@ -95,8 +153,9 @@ META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
     scanner->flags = flags;
     scanner->err_no = ERR_NONE;
 
-    scanner->buffer = emalloc(sizeof(zend_llist));
-    zend_llist_init(scanner->buffer, sizeof(TOKEN*), ast_token_dtor, 0);
+    scanner->buffer = emalloc(sizeof(zend_ptr_stack));
+    zend_ptr_stack_init(scanner->buffer);
+    //zend_llist_init(scanner->buffer, sizeof(TOKEN*), ast_token_dtor, 0);
 
     return scanner;
 }
@@ -104,24 +163,29 @@ META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
 
 META_API void meta_scanner_free(meta_scanner **scanner) {
     zval_ptr_dtor(&((*scanner)->rawsrc));
-    zend_llist_destroy((*scanner)->buffer);
+    int elems;
+    TOKEN* token;
+    //TODO inspect (*scanner)->buffer->max for real inputs - how big does the stack grow?
+    elems = zend_ptr_stack_num_elements((*scanner)->buffer);
+    while(elems--) {
+        token = zend_ptr_stack_pop((*scanner)->buffer);
+        ast_token_dtor(token);
+        //efree(token);
+    }
+    zend_ptr_stack_destroy((*scanner)->buffer);
+    //zend_llist_destroy((*scanner)->buffer);
     efree((*scanner)->buffer);
     efree(*scanner);
 }
 
-META_API void ast_token_dtor(void *t) {
-    TOKEN *tok;
-    tok = *((TOKEN**)t);
-    if(TOKEN_MAJOR(tok) > 0 && NULL != TOKEN_MINOR(tok)) {
+META_API void ast_token_dtor(TOKEN *tok) {
+    if(NULL != TOKEN_MINOR(tok)) {
+        //Z_DELREF_P(tok->minor);
         zval_ptr_dtor(&((tok)->minor));
+        //zval_dtor(tok->minor);
+        //efree(tok->minor);
     }
-}
-
-META_API void token_free(TOKEN **t) {
-    ast_token_dtor(t);
-    if(NULL != *t) {
-        efree(*t);
-    }
+    efree(tok);
 }
 
 TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
@@ -135,7 +199,6 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     t->dirty = 0;
     t->start_line = 0;
     t->end_line = 0;
-    DBG("major: %d", major);
     switch(major) {
         case 0:
         case T_PLUS:
@@ -180,9 +243,11 @@ META_API zval* meta_scanner_token_zval(TOKEN* t) {
     return tzv;
 }
 
-#define TOKENS_COUNT(scanner) zend_llist_count(scanner->buffer)
-#define TOKEN_PUSH(scanner, tok) if(TOKEN_MINOR(tok)) zval_add_ref(&TOKEN_MINOR(tok)); zend_llist_add_element(scanner->buffer, &tok)
-#define TOKEN_POP(scanner) *(TOKEN**)zend_llist_get_last_ex(scanner->buffer, NULL); zend_llist_remove_tail(scanner->buffer)
+#define TOKENS_COUNT(scanner) zend_ptr_stack_num_elements(scanner->buffer)
+#define TOKEN_PUSH(scanner, tok) zend_ptr_stack_push(scanner->buffer, tok)
+//#define TOKEN_PUSH(scanner, tok) if(TOKEN_MINOR(tok)) zval_add_ref(&TOKEN_MINOR(tok)); zend_llist_add_element(scanner->buffer, &tok)
+//#define TOKEN_POP(scanner) *(TOKEN**)zend_llist_get_last_ex(scanner->buffer, NULL); zend_llist_remove_tail(scanner->buffer)
+#define TOKEN_POP(scanner) zend_ptr_stack_pop(scanner->buffer)
 
 /**
  * return
@@ -201,9 +266,6 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
     int transient_delta;
     //if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor;
     unsigned int last_line_no;
-    //some rules have "siblings", the first one only advances the cursor, the second actually creates a token;
-    //this flag is true if the first sibling has already been active
-    zend_bool sibling_was_active;
 
 //interface macros
 #define YYCURSOR scanner->cursor
@@ -230,13 +292,12 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 
 lex_root:
     token = NULL;
+    last_cursor = YYCURSOR;
+    last_line_no = scanner->line_no;
 if(TOKENS_COUNT(scanner)) {
     token = TOKEN_POP(scanner);
     goto lex_end;
 }
-    last_cursor = YYCURSOR;
-    last_line_no = scanner->line_no;
-    sibling_was_active = 0;
 
 /*!re2c
 re2c:define:YYDEBUG = DBG_SCANNER;
@@ -247,6 +308,7 @@ EXPONENT_DNUM   (({LNUM}|{DNUM})[eE][+-]?{LNUM})
 HNUM    "0x"[0-9a-fA-F]+
 LABEL   [a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*
 WHITESPACE [ \n\r\t]
+NON_WS [^ \n\r\t]
 TABS_AND_SPACES [ \t]
 TOKENS [;:,.\[\]()|^&+-/*=%!~$<>?@]
 ANY_CHAR [^]
@@ -260,6 +322,10 @@ PHP_STOP ("?>"|"%>")
 lex_start:
 /*!re2c
 <ST_INITIAL>{ANY_CHAR} {
+    //TODO detect EOL, increment scanner->line_no
+    if(IS_EOL(YYCURSOR)) {
+        scanner->line_no++;
+    }
     if(YYCURSOR > YYLIMIT - YYMAXFILL) {
         TOKEN *outside;
         outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor);
@@ -314,36 +380,24 @@ do_transient_start:
     eoi = ast_token_ctor(scanner, 0, NULL, 0);
     RETURN(eoi);
 }
-/* ***** processing tokens which can be merged ***** */
-<ST_IN_SCRIPTING>{TABS_AND_SPACES}+|{NEWLINE}/{TABS_AND_SPACES}|{NEWLINE} {
-    sibling_was_active = 1;
-    if(' ' != *(YYCURSOR -1) || '\t' != *(YYCURSOR - 1)) {
+
+<ST_IN_SCRIPTING>{WHITESPACE}/{NON_WS} {
+    TOKEN *ws;
+    ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor);
+    if(IS_EOL(YYCURSOR-1)) {
+        scanner->line_no++;
+    }
+    RETURN(ws);
+}
+<ST_IN_SCRIPTING>{WHITESPACE}/{WHITESPACE}{
+    if(IS_EOL(YYCURSOR)) {
         scanner->line_no++;
     }
     yymore();
 }
-<ST_IN_SCRIPTING>{TABS_AND_SPACES}+|{NEWLINE} {
-    if(!HAS_FLAG(scanner, IGNORE_WHITESPACE)) {
-        TOKEN *ws;
-        ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor);
-        ws->end_line = scanner->line_no;
-        if(' ' != *(YYCURSOR -1) && '\t' != *(YYCURSOR - 1)) {
-            scanner->line_no++;
-            if(!sibling_was_active) {
-               ws->end_line++;
-            }
-        }
-        RETURN(ws);
-    }
-    else {
-        yymore();
-    }
-}
-
 /* ***** "top" tokens ***** */
 <ST_IN_SCRIPTING>{LNUM} {
     TOKEN* num;
-    DBG("T_LNUMBER");
     num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor);
     RETURN(num);
 }
@@ -369,6 +423,9 @@ lex_end:
     }
     if(!token->end_line) {
         token->end_line = scanner->line_no;
+    }
+    if(0 == TOKEN_MAJOR(token)) {
+        scanner->err_no = ERR_EOI;
     }
     return token;
 }

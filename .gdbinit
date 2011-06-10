@@ -1,11 +1,11 @@
 set confirm off
 set breakpoint pending on
 
-break zif_meta_test
-
-set args -r 'meta_test("hello");'
+set args -f test.php
+break php_scanner.re:41
 set logging on
 set logging overwrite on
+set history save on
 
 define ____executor_globals
     if basic_functions_module.zts

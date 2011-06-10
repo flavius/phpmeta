@@ -1,10 +1,16 @@
 %include {
+
+//TODO modify lemon to always include yyTokenName, as well as the indexes where terminals/nonterminals start/end
 #ifndef NDEBUG
 
 #include <assert.h>
+#include "php_parser_meta.h"
 
 static const char *const yyTokenName[];
 const char* meta_token_repr(int n) {
+    if(n > T_INTERNAL_SKIP) {
+        return "UNKNOWN";
+    }
     return yyTokenName[n];
 }
 
