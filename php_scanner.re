@@ -205,6 +205,7 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
             break;
         case T_OUTSIDE_SCRIPTING:
         case T_OPEN_TAG:
+        case T_OPEN_TAG_WITH_ECHO:
         case T_WHITESPACE:
         case T_CLOSE_TAG:
             MAKE_STD_ZVAL(TOKEN_MINOR(t));
@@ -264,6 +265,7 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 
     //enables some rules to share code
     int transient_delta;
+    int transient_major;
     //if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor;
     unsigned int last_line_no;
 
@@ -341,10 +343,11 @@ lex_start:
 
 <ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
     transient_delta = 5;
+    transient_major = T_OPEN_TAG;
 do_transient_start:
     SETSTATE(IN_SCRIPTING);
     TOKEN *open_tag;
-    open_tag = ast_token_ctor(scanner, T_OPEN_TAG, YYCURSOR - transient_delta, transient_delta);
+    open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta);
     if(last_cursor == YYCURSOR - transient_delta) {
         RETURN(open_tag);
     }
@@ -358,8 +361,10 @@ do_transient_start:
 
 <ST_INITIAL>{PHP_START_EX} {
     transient_delta = 2;
+    transient_major = T_OPEN_TAG;
     if('=' == *(YYCURSOR-1)) {
         transient_delta++;
+        transient_major = T_OPEN_TAG_WITH_ECHO;
     }
     if( (HAS_FLAG(scanner, SHORT_OPEN_TAG) && '?' == *(YYCURSOR - transient_delta + 1)) ||
         (HAS_FLAG(scanner, ASP_TAGS) && '%' == *(YYCURSOR - transient_delta + 1)) ) {
