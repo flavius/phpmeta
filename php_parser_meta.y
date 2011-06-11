@@ -35,7 +35,7 @@ const char* meta_token_repr(int n) {
 %start_symbol start
 %token_prefix T_
 %token_type{Token*}
-%extra_argument{ AstTree* }
+%extra_argument{ AstTree* tree }
 
 %left INCLUDE INCLUDE_ONCE EVAL REQUIRE REQUIRE_ONCE.
 %left COMMA.
