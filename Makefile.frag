@@ -15,3 +15,5 @@ $(srcdir)/php_parser.c $(srcdir)/php_parser.h: $(srcdir)/lemon
 $(srcdir)/lemon:
 	$(CC) lemon.c -o lemon
 
+clean_:clean
+	rm -f php_parser_meta.h php_parser.c
