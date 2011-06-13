@@ -1398,7 +1398,6 @@ static void handle_T_option(char *z){
     memory_error();
   }
   strcpy(user_templatename, z);
-  fprintf(stderr, "T: %s\n", user_templatename);
 }
 
 /* file name to save the generated minor numbers to; defaults to filename */

@@ -13,6 +13,11 @@
 extern zend_module_entry meta_module_entry;
 #define phpext_meta_ptr &meta_module_entry
 
+//internal API of the scanner and the parser are marked as such
 #define META_API
+
+//TODO here or in the internal parser?
+void *meta_alloc(size_t size);
+void meta_free(void* ptr);
 
 #endif //PHP_META_H
