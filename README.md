@@ -15,34 +15,34 @@ What it can be used for
 Meta can be used for empowering your scripts with meta-programming
 capabilities. For this, you need three things:
 
-  * the **processor** - this is the file where you implement the callbacks;
+  * the *processor* - this is the file where you implement the callbacks;
   this is what drives the transformation from your meta-annotated
   script to the end result
-  * the **source** - this is the code processed by the processor
-  * the **transformation code** - this code is responsible for
-  modifying the **source** according to your needs
+  * the *source* - this is the code processed by the processor
+  * the *transformation code* - this code is responsible for
+  modifying the *source* according to your needs
 
-In the end you will get a **processed script**. You do not need to
-process the source to get a **processed script** as long as you
-don't modify **the source**.
+In the end you will get a *processed script*. You do not need to
+process the source to get a *processed script* as long as you
+don't modify *the source*.
 
-The **processed script** will be the one to be executed instead of
-your **source**.
+The *processed script* will be the one to be executed instead of
+your *source*.
 
-The exact way of hooking the **transformation code** into the process
+The exact way of hooking the *transformation code* into the process
 is an open issue I am still researching on. There are two big ways:
 
-  * the **transformation code** will be part of the **source**. In
+  * the *transformation code* will be part of the *source*. In
   this case the hooking of the code will be done as a comment, so
-  your **source** will still remain syntactically correct
-  * the **transformation code** will be part of the **processor**.
-  In this case, the **source** will remain clean
+  your *source* will still remain syntactically correct
+  * the *transformation code* will be part of the *processor*.
+  In this case, the *source* will remain clean
 
 This sounds quite complex, but it could work seamlessly in modern
 PHP applications. Modern PHP applications use the autoloading
 functionality of PHP - you could arrange it such that the preprocessing
-of the **source** is done there, as well as caching the resulting
-**processed script**.
+of the *source* is done there, as well as caching the resulting
+*processed script*.
 
 How to use it
 =============
