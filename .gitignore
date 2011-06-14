@@ -29,12 +29,6 @@ config.h
 meta.lo
 meta.la
 lemon
-php_parser.c
-php_parser.h
-php_parser.lo
-php_parser.out
-php_scanner_defs.h
-php_scanner.lo
-php_scanner.c
 build.log
 gdb.txt
+.gitCOMMIT_EDITMSG
