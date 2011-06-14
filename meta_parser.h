@@ -20,8 +20,6 @@ void *MetaParserAlloc(void *(*mallocProc)(size_t));
 void MetaParserFree(void *p, void (*freeProc)(void*) );
 void MetaParser( void *yyp,int yymajor,TOKEN* minor,AstTree *tree);
 
-#ifndef NDEBUG
 const char* meta_token_repr(int n);
-#endif
 
 #endif // META_PARSER_H

@@ -6,11 +6,10 @@
 //TODO rename it globally
 typedef TOKEN Token;
 
-//TODO modify lemon to always include yyTokenName, as well as the indexes where terminals/nonterminals start/end
 #ifndef NDEBUG
-
 //TODO remove
 #include <assert.h>
+#endif
 
 #include "meta_parser.h"
 
@@ -22,7 +21,6 @@ const char* meta_token_repr(int n) {
     return yyTokenName[n];
 }
 
-#endif
 
 #if 1
 #define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
