@@ -22,7 +22,9 @@ typedef struct _token {
 //useful for zendll
 void meta_token_dtor(TOKEN *token);
 //TODO rename
-void token_free(TOKEN **t);
+//void token_free(TOKEN **t);
+//TODO used nowhere!
+void meta_token_free(TOKEN **t);
 
 #define SFLAG_SHORT_OPEN_TAG    0x1
 #define SFLAG_ASP_TAGS          0x1<<1

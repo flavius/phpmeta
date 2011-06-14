@@ -91,7 +91,6 @@ META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
     return scanner;
 }
 
-
 META_API void meta_scanner_free(meta_scanner **scanner) {
     zval_ptr_dtor(&((*scanner)->rawsrc));
     int elems;
@@ -177,8 +176,6 @@ META_API zval* meta_scanner_token_zval(TOKEN* t) {
 
 #define TOKENS_COUNT(scanner) zend_ptr_stack_num_elements(scanner->buffer)
 #define TOKEN_PUSH(scanner, tok) zend_ptr_stack_push(scanner->buffer, tok)
-//#define TOKEN_PUSH(scanner, tok) if(TOKEN_MINOR(tok)) zval_add_ref(&TOKEN_MINOR(tok)); zend_llist_add_element(scanner->buffer, &tok)
-//#define TOKEN_POP(scanner) *(TOKEN**)zend_llist_get_last_ex(scanner->buffer, NULL); zend_llist_remove_tail(scanner->buffer)
 #define TOKEN_POP(scanner) zend_ptr_stack_pop(scanner->buffer)
 
 /**
