@@ -15,18 +15,18 @@ What it can be used for
 Meta can be used for empowering your scripts with meta-programming
 capabilities. For this, you need three things:
 
-  * the *processor* - this is the file where you implement the callbacks;
+  * the *processor* - the files where you implement the callbacks;
   this is what drives the transformation from your meta-annotated
-  script to the end result
-  * the *source* - this is the code processed by the processor
+  *source* to the end result
+  * the *source* - this is the code processed by the *processor*
   * the *transformation code* - this code is responsible for
   modifying the *source* according to your needs
 
-In the end you will get a *processed script*. You do not need to
-process the source to get a *processed script* as long as you
+In the end you will get a *preprocessed code*. You do not need to
+process the source to get a *preprocessed code* as long as you
 don't modify *the source*.
 
-The *processed script* will be the one to be executed instead of
+The *preprocessed code* will be the one to be executed instead of
 your *source*.
 
 The exact way of hooking the *transformation code* into the process
@@ -36,13 +36,14 @@ is an open issue I am still researching on. There are two big ways:
   this case the hooking of the code will be done as a comment, so
   your *source* will still remain syntactically correct
   * the *transformation code* will be part of the *processor*.
-  In this case, the *source* will remain clean
+  In this case, the *source* will remain clean, not annotated with
+  any *transformation code*
 
-This sounds quite complex, but it could work seamlessly in modern
+It may look daunting to use it, but it could work seamlessly in modern
 PHP applications. Modern PHP applications use the autoloading
 functionality of PHP - you could arrange it such that the preprocessing
 of the *source* is done there, as well as caching the resulting
-*processed script*.
+*preprocessed code*.
 
 How to use it
 =============
@@ -69,6 +70,11 @@ should not include directly, but through the `.h` files mentioned above.
 `scanner.c` and `parser.c` contain the functionalities exported to the
 runtime, through `meta.c`.
 
+The internal lexer of the Zend Engine could not be used as it's bound
+to CG (and as such, `php.ini`). The Meta's scanner is aimed at scanning
+any kind of input, no matter if the host where it is run has `short_tags`
+on or not, for example.
+
 Coding conventions
 ------------------
 
@@ -80,5 +86,22 @@ The parser also contains the `MetaParser*` functions, as generated
 by lemon.
 
 The scanner contains all the token-handling functions, which have
-the prefix `meta_token_`, which the parser contains similar functions
+the prefix `meta_token_`, while the parser contains similar functions
 for AST nodes starting with `meta_node_`.
+
+Current status
+--------------
+
+Currently the scanner's basic structure is set in stone, but it doesn't
+tokenize any kind of input, only inline html, and numbers and whitespaces
+inside PHP processing, and the + operation.
+
+I am still looking at ways to construct the AST, the internal representation
+of AST nodes, and exposing it to the runtime. Internally, experiments
+are done in `PHP_FUNCTION(meta_test)`.
+
+Roadmap
+-------
+
+With the 0.0.1 milestone ready, the user will be able to construct and
+modify the AST tree of simple math expressions.
