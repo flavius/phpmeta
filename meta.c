@@ -5,11 +5,39 @@
 #include "php_meta.h"
 #include "scanner.h"
 #include "meta_scanner.h"
+#include "meta_parser.h"
 
 //#define DEBUG
 
 //new feature testing, TODO: remove before 0.0.1
 PHP_FUNCTION(meta_test) {
+    zval *src;
+    meta_scanner* scanner;
+    TOKEN *token;
+    void *parser;
+    int major;
+
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &src)) {
+        WRONG_PARAM_COUNT;
+    }
+    scanner = meta_scanner_alloc(src, SFLAGS_MOST);
+    parser = MetaParserAlloc(meta_alloc);
+    //TODO initialize ast tree
+    major = 1;
+    do {
+        token = meta_scan(scanner TSRMLS_CC);
+        major = TOKEN_MAJOR(token);
+        if(major >= 0) {
+            //TODO call parser
+            //token_free(&token);
+            meta_token_dtor(token);
+        }
+        else {
+            //error reporting
+        }
+    } while(major > 0);
+    MetaParserFree(parser, meta_free);
+    meta_scanner_free(&scanner);
 }
 
 static function_entry php_meta_functions[] = {

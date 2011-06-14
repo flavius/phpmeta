@@ -13,6 +13,13 @@ typedef TOKEN Token;
 
 #include "meta_parser.h"
 
+AstTree* meta_tree_ctor(void) {
+    AstTree *tree;
+    tree = emalloc(sizeof(AstTree));
+    //TODO initialize members
+    return tree;
+}
+//TODO maybe move it to the scanner?
 static const char *const yyTokenName[];
 const char* meta_token_repr(int n) {
     if(n > T_INTERNAL_SKIP) {
