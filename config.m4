@@ -1,3 +1,4 @@
+dnl TODO remove these
 CFLAGS="$CFLAGS -Wall -Wextra -Wno-unused -g3 -DDEBUG"
 PHP_ARG_ENABLE(meta,
 	[Whether to enable the "meta" extension],

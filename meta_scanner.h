@@ -16,12 +16,12 @@ typedef struct _token {
     long end_line;
 } TOKEN;
 
-//TODO remove typecasting
-#define TOKEN_MAJOR(t) (((TOKEN*)t)->major)
-#define TOKEN_MINOR(t) (((TOKEN*)t)->minor)
+#define TOKEN_MAJOR(t) ((t)->major)
+#define TOKEN_MINOR(t) ((t)->minor)
 
 //useful for zendll
-void ast_token_dtor(TOKEN *token);
+void meta_token_dtor(TOKEN *token);
+//TODO rename
 void token_free(TOKEN **t);
 
 #define SFLAG_SHORT_OPEN_TAG    0x1

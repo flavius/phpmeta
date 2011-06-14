@@ -17,7 +17,7 @@ static function_entry php_meta_functions[] = {
     PHP_FE(meta_scanner_init, NULL)
     PHP_FE(meta_scanner_get, NULL)
     PHP_FE(meta_scanner_token_name, NULL)
-    {NULL, NULL, NULL}
+    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 
 //TODO detect if the token ext is activated, if no, activate backwards compatibility
