@@ -6,8 +6,6 @@
 //NEVER include the defs directly, always do it by including THIS file
 #include "meta_scanner_defs.h"
 
-//TODO streamline the scanner internal API
-
 typedef struct _token {
     int major;
     zval *minor;
