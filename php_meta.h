@@ -32,6 +32,6 @@ zval** get_params(const char *fmt, ...);
 #include "zend.h"
 
 #define META_ZDUMP(pzv) do { php_printf("-- (%d : '%s') %p: ",__LINE__, __PRETTY_FUNCTION__, pzv); \
-    php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
+    if(NULL != pzv) php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
 
 #endif //PHP_META_H

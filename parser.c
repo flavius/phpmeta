@@ -153,7 +153,6 @@ PHP_METHOD(ASTNode, setParentNode) {
     index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0, 0 TSRMLS_CC, "z", obj);
     META_UP_PROP_L(node, obj, "index", Z_LVAL_P(index));
     //META_UP_PROP(node, obj, "index", index);
-    //META_ZDUMP(index);
     zval_ptr_dtor(&index);
 }
 
