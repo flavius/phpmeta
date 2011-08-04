@@ -61,12 +61,12 @@ PHP_FUNCTION(meta_test) {
             break;
         }
         else {
-            META_ZDUMP(TOKEN_MINOR(token));
+            //META_ZDUMP(TOKEN_MINOR(token));
         }
     } while(major > 0);
     MetaParserFree(parser, meta_free);
     meta_scanner_free(&scanner);
-    META_ZDUMP(tree);
+    //META_ZDUMP(tree);
     RETVAL_ZVAL(tree, 0, 1);
 }
 

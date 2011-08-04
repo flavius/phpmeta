@@ -4,6 +4,14 @@
 
 #include "php_meta.h" // for meta_zdump, TODO remove if not used
 
+//TODO remove this
+#if 1
+#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
+#else
+#define DBG(fmt, args...)
+#endif
+
+
 int meta_parser_init_function(INIT_FUNC_ARGS) {
     zend_class_entry ce;
 
@@ -22,7 +30,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
     //-- ASTTree
     INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
     META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
-    //META_PROP_NULL(tree, "children");
+    META_PROP_NULL(tree, "children");
 
     //TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it)
 
@@ -91,16 +99,16 @@ ZEND_END_ARG_INFO()
 static const function_entry php_meta_asttree_functions[] = {
     PHP_ME(ASTTree, __construct,        NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
     PHP_ME(ASTTree, __destruct,         NULL, ZEND_ACC_DTOR|ZEND_ACC_PUBLIC)
-    PHP_ME(ASTTree, appendChild,        php_meta_onearg, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTTree, removeChild,        NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTTree, hasChildNodes,      NULL, ZEND_ACC_PUBLIC)
+    //PHP_ME(ASTTree, appendChild,        php_meta_onearg, ZEND_ACC_PUBLIC)
+    //PHP_ME(ASTTree, removeChild,        NULL, ZEND_ACC_PUBLIC)
+    //PHP_ME(ASTTree, hasChildNodes,      NULL, ZEND_ACC_PUBLIC)
     ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 
 //---------------- the ASTNode class ---------------------
 PHP_METHOD(ASTNode, __construct) {
     long major, start_line, end_line;
-    zval *obj, *minor, *root;
+    zval *obj, *minor, *root, *children;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzOll",
                 &major, &minor, &root, META_CLASS(tree), &start_line, &end_line)) {
         WRONG_PARAM_COUNT;
@@ -114,12 +122,16 @@ PHP_METHOD(ASTNode, __construct) {
     META_UP_PROP(node, obj, "root", root);
     META_UP_PROP_L(node, obj, "start_line", start_line);
     META_UP_PROP_L(node, obj, "end_line", end_line);
+    MAKE_STD_ZVAL(children);
+    array_init(children);
+    META_UP_PROP(node, obj, "children", children);
+    Z_DELREF_P(children);
 
     //add myself to the root tree
     //TODO instead of searching for the function every time, find it once in MINIT and reuse it every time
-    zend_function *appendChild;
-    zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    obj_call_method_internal_ex(root, META_CLASS(tree), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
+    //zend_function *appendChild;
+    //zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
+    //obj_call_method_internal_ex(root, META_CLASS(tree), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
 }
 
 PHP_METHOD(ASTNode, setParentNode) {
@@ -137,8 +149,12 @@ PHP_METHOD(ASTNode, setParentNode) {
     META_UP_PROP(node, obj, "parent", parent);
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
-    META_UP_PROP(node, obj, "index", index);
+    //TODO why does this call return NULL? it should return an IS_LONG with value zero
+    index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0, 0 TSRMLS_CC, "z", obj);
+    META_UP_PROP_L(node, obj, "index", Z_LVAL_P(index));
+    //META_UP_PROP(node, obj, "index", index);
+    //META_ZDUMP(index);
+    zval_ptr_dtor(&index);
 }
 
 PHP_METHOD(ASTNode, appendChild) {
