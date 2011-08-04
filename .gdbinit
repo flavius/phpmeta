@@ -2,13 +2,22 @@ set confirm off
 set breakpoint pending on
 
 set args -f my_t/test_parser.php
-#break meta.c:266
-break meta_parser.y:190
+#break zif_meta_test
+#break meta_parser.y:210
+break zend_execute_API.c:983
 #break obj_call_method_internal_ex
 #break meta_parser.y:166
 set logging on
 set logging overwrite on
-set history save on
+#set history save on
+
+define retval_leak_dbg
+    print *fci
+    printzv *fci->retval_ptr_ptr
+    printzv fci->object_ptr
+    backtrace
+    continue
+end
 
 define ____executor_globals
     if basic_functions_module.zts
