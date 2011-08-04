@@ -1409,6 +1409,16 @@ static void handle_h_option(char *z) {
     }
     strcpy(report_name, z);
 }
+/* prefix for non-terminals to be dumped to the header file; NULL means
+ * no #define's for NTs will be generated */
+static char *header_nt_prefix = NULL;
+static void handle_n_option(char *z) {
+    header_nt_prefix = malloc (lemonStrlen(z)+1);
+    if(header_nt_prefix == 0) {
+        memory_error();
+    }
+    strcpy(header_nt_prefix, z);
+}
 
 /* The main program.  Parse the command line and do it... */
 int main(int argc, char **argv)
@@ -1429,6 +1439,7 @@ int main(int argc, char **argv)
     {OPT_FSTR, "T", (char*)handle_T_option, "Specify a template file."},
     {OPT_FLAG, "g", (char*)&rpflag, "Print grammar without actions."},
     {OPT_FLAG, "m", (char*)&mhflag, "Output a makeheaders compatible file."},
+    {OPT_FSTR, "n", (char*)&handle_n_option, "Specify the non-terminal prefix."},
     {OPT_FLAG, "l", (char*)&nolinenosflag, "Do not print #line statements."},
     {OPT_FLAG, "p", (char*)&showPrecedenceConflict,
                     "Show conflicts resolved by precedence rules"},
@@ -4091,6 +4102,11 @@ void ReportHeader(struct lemon *lemp)
   if( out ){
     for(i=1; i<lemp->nterminal; i++){
       fprintf(out,"#define %s%-30s %2d\n",prefix,lemp->symbols[i]->name,i);
+    }
+    if(header_nt_prefix != NULL) {
+        for(i++; i < lemp->nsymbol; i++) {
+            fprintf(out,"#define %s%-30s %2d\n",header_nt_prefix,lemp->symbols[i]->name, i);
+        }
     }
     fclose(out);
   }

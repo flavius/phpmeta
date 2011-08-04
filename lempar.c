@@ -167,6 +167,9 @@ typedef struct yyStackEntry yyStackEntry;
 ** the following structure */
 struct yyParser {
   int yyidx;                    /* Index of top element in stack */
+#if ZTS
+  void*** tsrm_ls;              /* XXX */
+#endif
 #ifdef YYTRACKMAXSTACKDEPTH
   int yyidxMax;                 /* Maximum value of yyidx */
 #endif
@@ -277,6 +280,9 @@ void *ParseAlloc(void *(*mallocProc)(size_t)){
     yyGrowStack(pParser);
 #endif
   }
+#if ZTS
+  pParser->tsrm_ls = ts_resource_ex(0, NULL);
+#endif
   return pParser;
 }
 

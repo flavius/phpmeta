@@ -2,52 +2,9 @@
 #include <zend_API.h>
 #include <php.h>
 #include "meta_scanner.h"
+#include "scanner_API.h"
 #include "meta_parser.h"
 #include <errno.h>
-
-void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
-    meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
-    meta_scanner_free(&scanner);
-}
-
-META_API zval* meta_token_zval(TOKEN *token) {
-    zval* tok_repr;
-    MAKE_STD_ZVAL(tok_repr);
-    array_init_size(tok_repr, 8);//8 instead of 5, so zend_hash_init doesn't need to round up
-    add_assoc_long(tok_repr, "major", token->major);
-    add_assoc_bool(tok_repr, "dirty", token->dirty);
-    add_assoc_long(tok_repr, "start_line", token->start_line);
-    add_assoc_long(tok_repr, "end_line", token->end_line);
-    if(NULL != TOKEN_MINOR(token)) {
-        zval_add_ref(&token->minor);
-        add_assoc_zval(tok_repr, "minor", token->minor);
-    }
-    else {
-        add_assoc_null(tok_repr, "minor");
-    }
-    return tok_repr;
-}
-
-META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
-    array_init_size(tok_repr, 8);//8 instead of 5, so zend_hash_init doesn't need to round up
-    add_assoc_long(tok_repr, "major", token->major);
-    add_assoc_bool(tok_repr, "dirty", token->dirty);
-    add_assoc_long(tok_repr, "start_line", token->start_line);
-    add_assoc_long(tok_repr, "end_line", token->end_line);
-    if(NULL != TOKEN_MINOR(token)) {
-        zval_add_ref(&token->minor);
-        add_assoc_zval(tok_repr, "minor", token->minor);
-    }
-    else {
-        add_assoc_null(tok_repr, "minor");
-    }
-}
-
-// ---------------------------- scanner internals --------------------------------
-
-#define YYCTYPE char
-#define STATE(name) yyc##name
-#define ST_NAME(name) STATE(ST_ ## name)
 
 #define IS_EOL(c) *(c) == '\n' || (*(c) == '\r' && *((c)+1) != '\n')
 
@@ -65,64 +22,15 @@ META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
 
 /*!max:re2c */
 
-META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
-    meta_scanner *scanner;
-    Z_STRVAL_P(rawsrc) = erealloc(Z_STRVAL_P(rawsrc), Z_STRLEN_P(rawsrc)+YYMAXFILL);
-    memset(Z_STRVAL_P(rawsrc)+Z_STRLEN_P(rawsrc), 0, YYMAXFILL);
+const unsigned int meta_scanner_maxfill = YYMAXFILL;
 
-    scanner = emalloc(sizeof(meta_scanner));
-    scanner->limit = Z_STRVAL_P(rawsrc) + Z_STRLEN_P(rawsrc) + YYMAXFILL - 1;
-    scanner->src = Z_STRVAL_P(rawsrc);
-    scanner->src_len = Z_STRLEN_P(rawsrc);
-    zval_add_ref(&rawsrc);
-    scanner->cursor = scanner->ctxmarker = scanner->marker = scanner->src;
-
-    scanner->state = STATE(ST_INITIAL);
-    scanner->position = 0;
-    scanner->line_no = 1;
-    scanner->rawsrc = rawsrc;
-    scanner->flags = flags;
-    scanner->err_no = ERR_NONE;
-
-    scanner->buffer = emalloc(sizeof(zend_ptr_stack));
-    zend_ptr_stack_init(scanner->buffer);
-    //zend_llist_init(scanner->buffer, sizeof(TOKEN*), meta_token_dtor, 0);
-
-    return scanner;
-}
-
-META_API void meta_scanner_free(meta_scanner **scanner) {
-    zval_ptr_dtor(&((*scanner)->rawsrc));
-    int elems;
-    TOKEN* token;
-    //TODO inspect (*scanner)->buffer->max for real inputs - how big does the stack grow?
-    elems = zend_ptr_stack_num_elements((*scanner)->buffer);
-    while(elems--) {
-        token = zend_ptr_stack_pop((*scanner)->buffer);
-        meta_token_dtor(token);
-        //efree(token);
-    }
-    zend_ptr_stack_destroy((*scanner)->buffer);
-    //zend_llist_destroy((*scanner)->buffer);
-    efree((*scanner)->buffer);
-    efree(*scanner);
-}
-
-META_API void meta_token_dtor(TOKEN *tok) {
-    if(NULL != TOKEN_MINOR(tok)) {
-        //Z_DELREF_P(tok->minor);
-        zval_ptr_dtor(&((tok)->minor));
-        //zval_dtor(tok->minor);
-        //efree(tok->minor);
-    }
-    efree(tok);
-}
-
+//TODO do some profiling with this inline, see if we get any improvement that way
 TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     TOKEN* t;
     int errcode=0;
     long number;
 
+    //TODO take SFLAG_SKIP_REDUNDANT into account
     t = emalloc(sizeof(TOKEN));
     TOKEN_MAJOR(t) = major;
     TOKEN_MINOR(t) = NULL;
@@ -166,14 +74,6 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     return t;
 }
 
-META_API zval* meta_scanner_token_zval(TOKEN* t) {
-    zval* tzv;
-    MAKE_STD_ZVAL(tzv);
-    array_init(tzv);
-    add_assoc_long(tzv, "major", TOKEN_MAJOR(t));
-    return tzv;
-}
-
 #define TOKENS_COUNT(scanner) zend_ptr_stack_num_elements(scanner->buffer)
 #define TOKEN_PUSH(scanner, tok) zend_ptr_stack_push(scanner->buffer, tok)
 #define TOKEN_POP(scanner) zend_ptr_stack_pop(scanner->buffer)
@@ -195,7 +95,7 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
     int transient_delta;
     int transient_major;
     //if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor;
-    unsigned int last_line_no;
+    long last_line_no;
 
 //interface macros
 #define YYCURSOR scanner->cursor
@@ -217,10 +117,10 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 #define RETURN(tok) if(NULL != token) php_printf("\n\n\n\tyou are giving up a token! (line %d)\n\n\n", __LINE__); \
     token = tok; goto lex_end
 #else
-#define RETURN(tok)
+#define RETURN(tok) token = tok; goto lex_end
 #endif
 
-lex_root:
+//TODO remove lex_root:
     token = NULL;
     last_cursor = YYCURSOR;
     last_line_no = scanner->line_no;
@@ -248,6 +148,8 @@ PHP_START "<?php"
 PHP_START_EX ("<?="|"<?"|"<%="|"<%")
 PHP_STOP ("?>"|"%>")
 */
+
+//TODO new macro to reduce redundant code - TOKEN *declaration + ast_token_ctor + RETURN(declaration)
 
 lex_start:
 /*!re2c

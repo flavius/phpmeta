@@ -33,4 +33,7 @@ meta_*_defs.h
 lemon
 build.log
 gdb.txt
+.gdb_history
+stderr.txt
+_*
 .gitCOMMIT_EDITMSG

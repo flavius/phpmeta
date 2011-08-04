@@ -2,6 +2,7 @@
 #include "php_meta.h"
 #include "scanner.h"
 #include "meta_scanner.h"
+#include "scanner_API.h"
 #include "meta_parser.h"
 
 //TODO implement initialisation code, used by meta.c's MINIT & co
@@ -71,3 +72,7 @@ PHP_FUNCTION(meta_scanner_token_name) {
     RETURN_STRING(meta_token_repr(num), 1);
 }
 
+void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
+    meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
+    meta_scanner_free(&scanner);
+}

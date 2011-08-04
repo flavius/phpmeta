@@ -1,7 +1,32 @@
 %include {
 #include <zend.h>
+#include <php.h>
 #include "meta_scanner.h"
 #include "meta_parser.h"
+#include "parser_API.h"
+#include "parser.h"
+#include "php_meta.h" //TODO remove, as far as META_ZDUMP() is not used
+
+
+//TODO use the same names for TSRM-related stuff
+#define M_TSRMLS_D TSRMLS_D
+#define M_TSRMLS_DC TSRMLS_DC
+
+#if ZTS
+#define M_TSRMLS_C yypParser->tsrm_ls
+#define M_TSRMLS_CC , M_TSRMLS_C
+#else
+#define M_TSRMLS_C
+#define M_TSRMLS_CC
+#endif
+
+#undef TSRMG
+#define TSRMG(id, type, element) (((type) (*((void ***) yypParser->tsrm_ls))[TSRM_UNSHUFFLE_RSRC_ID(id)])->element)
+
+#ifdef TSRMLS_C
+#undef TSRMLS_C
+#define TSRMLS_C yypParser->tsrm_ls
+#endif
 
 //TODO rename it globally
 typedef TOKEN Token;
@@ -13,12 +38,6 @@ typedef TOKEN Token;
 
 #include "meta_parser.h"
 
-AstTree* meta_tree_ctor(void) {
-    AstTree *tree;
-    tree = emalloc(sizeof(AstTree));
-    //TODO initialize members
-    return tree;
-}
 //TODO maybe move it to the scanner?
 static const char *const yyTokenName[];
 const char* meta_token_repr(int n) {
@@ -42,7 +61,22 @@ const char* meta_token_repr(int n) {
 %start_symbol start
 %token_prefix T_
 %token_type{Token*}
-%extra_argument{ AstTree* tree }
+%extra_argument{ zval* tree }
+
+%token_destructor {
+    php_printf("\t\t\ttoken dtor: %p\n", $$);
+    //yeah, we shouldn't hide the warning
+    if(tree == tree) {}
+    //TODO we should ast_token_dtor($$)
+    efree($$);
+}
+
+%parse_accept {
+    php_printf("\t\t\t\t\t ACCEPT!\n");
+}
+%parse_failure {
+    php_printf("\t\t\t\t\t FAILURE!\n");
+}
 
 %left INCLUDE INCLUDE_ONCE EVAL REQUIRE REQUIRE_ONCE.
 %left COMMA.
@@ -145,13 +179,30 @@ const char* meta_token_repr(int n) {
 
 // dummy tokens
 %nonassoc OUTSIDE_SCRIPTING.
-// must be last, reserved, TODO: not used yet
+// MUST be last, reserved, TODO: not used yet
 %nonassoc INTERNAL_SKIP.
 
-start(A) ::=  processing(B) . { /* A B */ DBG("line1 %d", __LINE__); }
+%type processing {zval*}
 
-processing(A) ::= OUTSIDE_SCRIPTING(B) . { A = B; DBG("line2 %d", __LINE__); }
-processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . { /* A B C */ DBG("line3 %d", __LINE__); }
+start(A) ::=  processing(B) . {
+    //TODO instead of crafting nodes manually, use the tree as a factory,
+    //which instantiates the right classes if the user has some specific preferences
+    //META_ZDUMP(B);/* A B */
+    //zend_function *appendChild;
+    //zend_hash_find(&META_CLASS(tree)->function_table, "appendchild", sizeof("appendchild"), (void**) &appendChild);
+    //obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 0, 1 M_TSRMLS_CC, "z", B);
+}
+processing(A) ::= OUTSIDE_SCRIPTING(B) . {
+    DBG("line2 %d", __LINE__);
+    ALLOC_INIT_ZVAL(A);
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1, 1 M_TSRMLS_CC,
+        "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
+    efree(B);
+    //META_ZDUMP(A);
+}
+processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
+        /* A B C */
+}
 processing(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . { /* A B C D */ DBG("line3 %d", __LINE__); }
 
 top_stmt_list(A) ::= LNUMBER(B) . { /* A B */ DBG("line4 %d", __LINE__); }
