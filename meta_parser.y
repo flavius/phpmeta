@@ -189,7 +189,7 @@ start(A) ::=  processing(B) . {
     //which instantiates the right classes if the user has some specific preferences
     //META_ZDUMP(B);/* A B */
     //zend_function *appendChild;
-    //zend_hash_find(&META_CLASS(tree)->function_table, "appendchild", sizeof("appendchild"), (void**) &appendChild);
+    //zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     //obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 0, 1 M_TSRMLS_CC, "z", B);
 }
 processing(A) ::= OUTSIDE_SCRIPTING(B) . {

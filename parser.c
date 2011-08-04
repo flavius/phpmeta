@@ -44,7 +44,7 @@ PHP_METHOD(ASTTree, __construct) {
 PHP_METHOD(ASTTree, __destruct) {
     zval *children=NULL;
     zval *obj = getThis();
-    children = zend_read_property(META_CLASS(tree), obj, "children", sizeof("children")-1, 0 TSRMLS_CC);
+    children = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
     zval_ptr_dtor(&children);
 }
 
@@ -57,7 +57,7 @@ PHP_METHOD(ASTTree, appendChild) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
-    children = zend_read_property(META_CLASS(tree), obj, "children", sizeof("children")-1, 0 TSRMLS_CC);
+    children = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
     add_next_index_zval(children, child);
 }
 
@@ -68,7 +68,7 @@ PHP_METHOD(ASTTree, removeChild) {
 
 PHP_METHOD(ASTTree, hasChildNodes) {
     zval *children;
-    children = zend_read_property(META_CLASS(tree), getThis(), "children", sizeof("children")-1, 0 TSRMLS_CC);
+    children = zend_read_property(META_CLASS(tree), getThis(), STRL_PAIR("children")-1, 0 TSRMLS_CC);
     RETURN_BOOL(zend_hash_num_elements(Z_ARRVAL_P(children)));
 }
 
@@ -122,7 +122,7 @@ PHP_METHOD(ASTNode, __construct) {
     //add myself to the root tree
     //TODO instead of searching for the function every time, find it once in MINIT and reuse it every time
     zend_function *appendChild;
-    zend_hash_find(&META_CLASS(tree)->function_table, "appendchild", sizeof("appendchild"), (void**) &appendChild);
+    zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     obj_call_method_internal_ex(root, META_CLASS(tree), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
 }
 
@@ -132,14 +132,14 @@ PHP_METHOD(ASTNode, setParentNode) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
-    old_parent = zend_read_property(META_CLASS(node), obj, "parent", sizeof("parent")-1, 0 TSRMLS_CC);
+    old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
     if(IS_NULL != Z_TYPE_P(old_parent)) {
         //TODO if old_parent is not null, detach from it
     }
 
     META_UP_PROP(node, obj, "parent", parent);
     zend_function *appendChild;
-    zend_hash_find(&META_CLASS(node)->function_table, "appendchild", sizeof("appendchild"), (void**) &appendChild);
+    zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
     META_UP_PROP(node, obj, "index", index);
 }
@@ -151,7 +151,7 @@ PHP_METHOD(ASTNode, appendChild) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
-    children = zend_read_property(META_CLASS(node), obj, "children", sizeof("children")-1, 0 TSRMLS_CC);
+    children = zend_read_property(META_CLASS(node), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
     add_next_index_zval(children, child);
     index = zend_hash_next_free_element(Z_ARRVAL_P(children))-1;
     //TODO integer overflow

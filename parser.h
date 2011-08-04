@@ -8,6 +8,7 @@
 #define META_CLASS(cls) php_meta_ast ## cls ## _ce
 #define META_UP_PROP(class, obj, prop, value) zend_update_property(META_CLASS(class), obj, prop, sizeof(prop)-1, value TSRMLS_CC)
 #define META_UP_PROP_L(class, obj, prop, value) zend_update_property_long(META_CLASS(class), obj, prop, sizeof(prop)-1, value TSRMLS_CC)
+#define STRL_PAIR(str) str, sizeof(str)
 
 //--- the following stay here
 int meta_parser_init_function(INIT_FUNC_ARGS);

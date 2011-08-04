@@ -29,7 +29,7 @@ PHP_FUNCTION(meta_test) {
     tree3 = obj_call_method_internal_ex(tree3, php_meta_asttree_ce, php_meta_asttree_ce->constructor, EG(scope), 1, 1 TSRMLS_CC, NULL);
     //---- find a function of a class
     zend_function *appendChild;
-    zend_hash_find(&php_meta_asttree_ce->function_table, "appendchild", sizeof("appendchild"), (void**) &appendChild);
+    zend_hash_find(&php_meta_asttree_ce->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     //---- call the function
     zval *child;
     ALLOC_INIT_ZVAL(child);
