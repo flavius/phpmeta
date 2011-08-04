@@ -53,7 +53,8 @@ PHP_METHOD(ASTTree, appendChild) {
     zval *child;
     zval* obj;
 
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &child)) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+                &child)) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -100,7 +101,8 @@ static const function_entry php_meta_asttree_functions[] = {
 PHP_METHOD(ASTNode, __construct) {
     long major, start_line, end_line;
     zval *obj, *minor, *root;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzOll", &major, &minor, &root, META_CLASS(tree), &start_line, &end_line)) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzOll",
+                &major, &minor, &root, META_CLASS(tree), &start_line, &end_line)) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -122,7 +124,8 @@ PHP_METHOD(ASTNode, __construct) {
 
 PHP_METHOD(ASTNode, setParentNode) {
     zval *parent, *obj, *old_parent, *index;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &parent, META_CLASS(node))) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
+                &parent, META_CLASS(node))) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -141,7 +144,8 @@ PHP_METHOD(ASTNode, setParentNode) {
 PHP_METHOD(ASTNode, appendChild) {
     zval *child, *children, *obj;
     ulong index;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &child, META_CLASS(node))) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
+                &child, META_CLASS(node))) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
