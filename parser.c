@@ -113,12 +113,6 @@ PHP_METHOD(ASTNode, __construct) {
     META_UP_PROP_L(node, obj, "start_line", start_line);
     META_UP_PROP_L(node, obj, "end_line", end_line);
 
-    /* TODO init these properly if required
-    META_PROP_NULL(node, "children");
-    META_PROP_NULL(node, "parent");
-    META_PROP_ZERO(node, "index");
-    */
-
     //add myself to the root tree
     //TODO instead of searching for the function every time, find it once in MINIT and reuse it every time
     zend_function *appendChild;
