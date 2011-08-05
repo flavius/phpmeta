@@ -270,10 +270,12 @@ zval** get_params_ex(const char *fmt, va_list *argp) {
                 break;
             case 'z':
                 z = va_arg(*argp, zval*);
+                //TODO if z is NULL, turn it into a IS_NULL
                 Z_ADDREF_P(z);
                 params[i] = z;
                 break;
             default:
+                //TODO output error "wrong fmt specifier"
                 for(j = 0; j < i; j++) {
                     zval_ptr_dtor(&params[i]);
                 }
