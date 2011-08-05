@@ -189,14 +189,10 @@ const char* meta_token_repr(int n) {
 start(A) ::=  processing(B) . {
     //TODO instead of crafting nodes manually, use the tree as a factory,
     //which instantiates the right classes if the user has some specific preferences
-    //META_ZDUMP(B);/* A B */
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     zval* ret_t = obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", B);
-    META_ZDUMP(ret_t);
     zval_ptr_dtor(&ret_t);
-    //META_ZDUMP(B);
-    //zval_ptr_dtor(&B);
 }
 processing(A) ::= OUTSIDE_SCRIPTING(B) . {
     DBG("line2 %d", __LINE__);
@@ -204,7 +200,6 @@ processing(A) ::= OUTSIDE_SCRIPTING(B) . {
     A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC,
         "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
     efree(B);
-    //META_ZDUMP(A);
 }
 processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
     DBG("meta_parser.y %d", __LINE__);
@@ -218,9 +213,7 @@ processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
     efree(B);
     //------------- add children open_tag and C to A
     zend_function *setparent;
-    if(FAILURE == zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("setparentnode"), (void**) &setparent)) {
-        DBG("FAIL %d", __LINE__);
-    }
+    zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("setparentnode"), (void**) &setparent);
     obj_call_method_internal_ex(C, META_CLASS(node), setparent, META_CLASS(node), 1 M_TSRMLS_CC, "z", A);
 }
 processing(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . { /* A B C D */ DBG("line3 %d", __LINE__); }
@@ -230,5 +223,4 @@ top_stmt_list(A) ::= LNUMBER(B) . {
     ALLOC_INIT_ZVAL(A);
     A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
     efree(B);
-    /* A B */ DBG("line4 %d", __LINE__);
 }
