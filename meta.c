@@ -45,7 +45,7 @@ PHP_FUNCTION(meta_test) {
     scanner = meta_scanner_alloc(src, SFLAGS_MOST);
     parser = MetaParserAlloc(meta_alloc);
     ALLOC_INIT_ZVAL(tree);
-    tree = obj_call_method_internal_ex(tree, META_CLASS(tree), META_CLASS(tree)->constructor, EG(scope), 1, 1 TSRMLS_CC, NULL);
+    tree = obj_call_method_internal_ex(tree, META_CLASS(tree), META_CLASS(tree)->constructor, EG(scope), 1 TSRMLS_CC, NULL);
 
     do {
         token = meta_scan(scanner TSRMLS_CC);
@@ -66,7 +66,7 @@ PHP_FUNCTION(meta_test) {
     } while(major > 0);
     MetaParserFree(parser, meta_free);
     meta_scanner_free(&scanner);
-    //META_ZDUMP(tree);
+    META_ZDUMP(tree);
     RETVAL_ZVAL(tree, 0, 1);
 }
 
@@ -129,7 +129,7 @@ void meta_free(void* ptr) {
 
 //TODO unify return_object and native_null into one single param
 zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
-       zend_bool return_object, zend_bool native_null TSRMLS_DC, char* fmt, ...) {
+       zend_bool native_null TSRMLS_DC, char* fmt, ...) {
 
     zval **params;
     zend_fcall_info fci;
@@ -179,7 +179,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
     fcc.called_scope = ce;
 
     //if we want the object, and the object is not an object yet, we init it
-    if(return_object) {
+    if(func == ce->constructor) {
         if(IS_NULL == Z_TYPE_P(obj)) {
             object_init_ex(obj, ce);
         }
@@ -187,7 +187,6 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
             //TODO error: you've requested the object, but obj is not properly initialized
             php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
             native_null = 1;
-            return_object = 0;
             goto clean_params;
         }
     }
@@ -198,8 +197,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
         //TODO proper error reporting
         php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
         if(NULL != retval_ptr) {
-            zval_dtor(retval_ptr);
-            efree(retval_ptr);
+            zval_ptr_dtor(&retval_ptr);
         }
     }
 clean_params:
@@ -210,14 +208,18 @@ clean_params:
         }
         efree(params);
     }
+    if(func == ce->constructor) {
+        zval_ptr_dtor(&retval_ptr);
+        retval_ptr = fci.object_ptr;
+    }
     if(native_null) {
         if(NULL != retval_ptr && IS_NULL == Z_TYPE_P(retval_ptr)) {
             zval_ptr_dtor(&retval_ptr);
+            retval_ptr = NULL;
         }
-        retval_ptr = NULL;
-    }
-    if(return_object) {
-        retval_ptr = fci.object_ptr;
+        else {
+            //TODO warning: if we reach this, it means the caller destroys the retval himself
+        }
     }
     return retval_ptr;
 }

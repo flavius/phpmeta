@@ -192,14 +192,15 @@ start(A) ::=  processing(B) . {
     //META_ZDUMP(B);/* A B */
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 0, 1 M_TSRMLS_CC, "z", B);
+    zval* ret_t = obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", B);
+    META_ZDUMP(ret_t);
     //META_ZDUMP(B);
     //zval_ptr_dtor(&B);
 }
 processing(A) ::= OUTSIDE_SCRIPTING(B) . {
     DBG("line2 %d", __LINE__);
     ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1, 1 M_TSRMLS_CC,
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC,
         "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
     efree(B);
     //META_ZDUMP(A);
@@ -212,21 +213,21 @@ processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
     //TODO we may have a NULL in TOKEN_MINOR(B), based on scanner's settings, in that case create a new IS_NULL
     //TODO make obj_call_method_internal_ex turn a NULL into a IS_NULL zval* internally, so we don't have to create data it manually
     zval *stmt_endline = zend_read_property(META_CLASS(node), C, STRL_PAIR("end_line")-1, 0 TSRMLS_CC);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1, 1 M_TSRMLS_CC, "lzzll", NT_processing, TOKEN_MINOR(B), tree, B->start_line, Z_LVAL_P(stmt_endline));
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzzll", NT_processing, TOKEN_MINOR(B), tree, B->start_line, Z_LVAL_P(stmt_endline));
     efree(B);
     //------------- add children open_tag and C to A
     zend_function *setparent;
     if(FAILURE == zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("setparentnode"), (void**) &setparent)) {
         DBG("FAIL %d", __LINE__);
     }
-    obj_call_method_internal_ex(C, META_CLASS(node), setparent, META_CLASS(node), 0, 1 M_TSRMLS_CC, "z", A);
+    obj_call_method_internal_ex(C, META_CLASS(node), setparent, META_CLASS(node), 1 M_TSRMLS_CC, "z", A);
 }
 processing(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . { /* A B C D */ DBG("line3 %d", __LINE__); }
 
 top_stmt_list(A) ::= LNUMBER(B) . {
     DBG("meta_parser.y %d", __LINE__);
     ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1, 1 M_TSRMLS_CC, "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
     efree(B);
     /* A B */ DBG("line4 %d", __LINE__);
 }
