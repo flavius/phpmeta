@@ -194,6 +194,7 @@ start(A) ::=  processing(B) . {
     zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     zval* ret_t = obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", B);
     META_ZDUMP(ret_t);
+    zval_ptr_dtor(&ret_t);
     //META_ZDUMP(B);
     //zval_ptr_dtor(&B);
 }

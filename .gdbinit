@@ -3,15 +3,18 @@ set breakpoint pending on
 
 set args -f my_t/test_parser.php
 #break zif_meta_test
-#break meta_parser.y:210
-break zend_execute_API.c:983
+#break meta.c:206
 #break obj_call_method_internal_ex
 #break meta_parser.y:166
+################# common places for ZE2, php 5.3.3:
+break zend_execute_API.c:983
+### leaking return value:
 set logging on
 set logging overwrite on
 #set history save on
 
 define retval_leak_dbg
+    info br 1
     print *fci
     printzv *fci->retval_ptr_ptr
     printzv fci->object_ptr
