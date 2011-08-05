@@ -63,7 +63,6 @@ PHP_METHOD(ASTTree, appendChild) {
 
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
                 &child)) {
-        DBG("wrong call on line %d in %s\n",__LINE__, __PRETTY_FUNCTION__);
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -112,7 +111,6 @@ PHP_METHOD(ASTNode, __construct) {
     zval *obj, *minor, *root, *children;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzOll",
                 &major, &minor, &root, META_CLASS(tree), &start_line, &end_line)) {
-        DBG("wrong call on line %d in %s\n",__LINE__, __PRETTY_FUNCTION__);
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -121,7 +119,7 @@ PHP_METHOD(ASTNode, __construct) {
     }
     META_UP_PROP_L(node, obj, "type", major);
     META_UP_PROP(node, obj, "data", minor);
-    //META_UP_PROP(node, obj, "root", root);
+    META_UP_PROP(node, obj, "root", root);
     META_UP_PROP_L(node, obj, "start_line", start_line);
     META_UP_PROP_L(node, obj, "end_line", end_line);
     MAKE_STD_ZVAL(children);
@@ -140,7 +138,6 @@ PHP_METHOD(ASTNode, setParentNode) {
     zval *parent, *obj, *old_parent, *index;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
                 &parent, META_CLASS(node))) {
-        DBG("wrong call on line %d in %s\n",__LINE__, __PRETTY_FUNCTION__);
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -152,10 +149,8 @@ PHP_METHOD(ASTNode, setParentNode) {
     META_UP_PROP(node, obj, "parent", parent);
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    //TODO why does this call return NULL? it should return an IS_LONG with value zero
     index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0 TSRMLS_CC, "z", obj);
     META_UP_PROP_L(node, obj, "index", Z_LVAL_P(index));
-    //META_UP_PROP(node, obj, "index", index);
     META_ZDUMP(index);
     zval_ptr_dtor(&index);
 }
@@ -165,32 +160,29 @@ PHP_METHOD(ASTNode, appendChild) {
     ulong index;
     if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
                 &child, META_CLASS(node))) {
-        DBG("wrong call on line %d in %s\n",__LINE__, __PRETTY_FUNCTION__);
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
     children = zend_read_property(META_CLASS(node), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
     add_next_index_zval(children, child);
     index = zend_hash_next_free_element(Z_ARRVAL_P(children))-1;
-    //TODO integer overflow
-    //META_UP_PROP_L(node, child, "index", index);
+    //TODO integer overflow?
     RETURN_LONG(index);
 }
 
 PHP_METHOD(ASTNode, __destruct) {
+    /* TODO I am not sure about the following, things seem to work so far without ...
+     * any leaks, so leave it, but keep it in mind.
+     * it may become an issue when we move nodes around (?)
     zval *property;
     zval *obj;
 
     obj = getThis();
     property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("root")-1, 0 TSRMLS_CC);
-    zval_ptr_dtor(&property);
+    //zval_ptr_dtor(&property);
     property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
-    zval_ptr_dtor(&property);
-    DBG("line %d in %s\n",__LINE__, __PRETTY_FUNCTION__);
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("data")-1, 0 TSRMLS_CC);
-    META_ZDUMP(property);
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("type")-1, 0 TSRMLS_CC);
-    META_ZDUMP(property);
+    //zval_ptr_dtor(&property);
+    */
 }
 
 //TODO arg info for all methods

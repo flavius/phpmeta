@@ -66,7 +66,6 @@ PHP_FUNCTION(meta_test) {
     } while(major > 0);
     MetaParserFree(parser, meta_free);
     meta_scanner_free(&scanner);
-    META_ZDUMP(tree);
     RETVAL_ZVAL(tree, 0, 1);
 }
 
