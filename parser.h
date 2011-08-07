@@ -36,4 +36,9 @@ static const function_entry php_meta_astnode_functions[];
             return FAILURE; \
         } }while(0)
 
+#define META_PROP_L(class, name, value) do { if(FAILURE == zend_declare_property_long( \
+            META_CLASS(class), name, sizeof(name)-1, value, ZEND_ACC_PROTECTED TSRMLS_CC)) { \
+            return FAILURE; \
+        } }while(0)
+
 #endif // PARSER_H

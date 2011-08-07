@@ -6,17 +6,27 @@
 //NEVER include the defs directly, always do it by including THIS file
 #include "meta_scanner_defs.h"
 
+//CTOR: ast_token_ctor in meta_scanner.re
 typedef struct _token {
     int major;
     zval *minor;
     //set by the scanner if it detects integer overflows or things like that
     zend_bool dirty;
+    //true for white spacing, comments, etc, any NT not handled by the grammar rules, which needs to be done manually
+    zend_bool is_dispensable;
     long start_line;
     long end_line;
+    //the parser shifts off some tokens not needed by the grammar (for instance whitespaces)
+    //this is in place so we can chain tokens circularily
+    //look at the scanner -> parser loop to see how this is used
+    struct _token *prev;
+    struct _token *next;
 } TOKEN;
 
 #define TOKEN_MAJOR(t) ((t)->major)
 #define TOKEN_MINOR(t) ((t)->minor)
+#define TOKEN_IS_DIRTY(t) ((t)->dirty)
+#define TOKEN_IS_DISPENSABLE(t) ((t)->is_dispensable)
 
 typedef struct _meta_scanner {
     zval* rawsrc;

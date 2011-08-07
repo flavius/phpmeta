@@ -91,6 +91,8 @@ ZEND_BEGIN_ARG_INFO_EX(php_meta_onearg, 0, 0, 1)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(php_meta_twoargs, 0, 0, 2)
 ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(php_meta_fourargs, 0, 0, 4)
+ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(php_meta_fiveargs, 0, 0, 5)
 ZEND_END_ARG_INFO()
 
@@ -108,13 +110,16 @@ static const function_entry php_meta_asttree_functions[] = {
 //---------------- the ASTNode class ---------------------
 PHP_METHOD(ASTNode, __construct) {
     long major, start_line, end_line;
-    zval *obj, *minor, *root, *children;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lzOll",
-                &major, &minor, &root, META_CLASS(tree), &start_line, &end_line)) {
+    zval *obj, *minor=NULL, *root, *children;
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lOll|z",
+                &major, &root, META_CLASS(tree), &start_line, &end_line, &minor)) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
-    if(!Z_ISREF_P(minor)) {
+    if(NULL != minor) {
+        ALLOC_INIT_ZVAL(minor);
+    }
+    else if(!Z_ISREF_P(minor)) {//TODO ??? huh? why do we do this?
         Z_DELREF_P(minor);
     }
     META_UP_PROP_L(node, obj, "type", major);
@@ -151,7 +156,6 @@ PHP_METHOD(ASTNode, setParentNode) {
     zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0 TSRMLS_CC, "z", obj);
     META_UP_PROP_L(node, obj, "index", Z_LVAL_P(index));
-    META_ZDUMP(index);
     zval_ptr_dtor(&index);
 }
 

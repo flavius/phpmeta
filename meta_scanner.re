@@ -37,6 +37,9 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     t->dirty = 0;
     t->start_line = 0;
     t->end_line = 0;
+    t->prev = NULL;
+    t->next = NULL;
+    TOKEN_IS_DISPENSABLE(t) = 0;
     switch(major) {
         case 0:
         case T_PLUS:
@@ -47,6 +50,9 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
         case T_WHITESPACE:
         case T_CLOSE_TAG:
             MAKE_STD_ZVAL(TOKEN_MINOR(t));
+            if(major == T_WHITESPACE) {
+                TOKEN_IS_DISPENSABLE(t) = 1;
+            }
             ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
             break;
         case T_LNUMBER:

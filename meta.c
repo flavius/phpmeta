@@ -17,7 +17,7 @@
 PHP_FUNCTION(meta_test) {
     zval *src;
     meta_scanner* scanner;
-    TOKEN *token;
+    TOKEN *token, *prev_token=NULL;
     void *parser;
     zval* tree=NULL;
     long long major;
@@ -51,12 +51,27 @@ PHP_FUNCTION(meta_test) {
         token = meta_scan(scanner TSRMLS_CC);
         major = TOKEN_MAJOR(token);
         php_printf("MAJOR: %lld\n", major);
+        //--- start testing branch: skip spaces
+        if(133 == major) {
+            meta_token_dtor(&token, 1);
+            continue;
+        }
+        //--- end testing branch: skip spaces
+        if(NULL == prev_token) {
+            prev_token = token;
+        }
+        else {
+            token->prev = prev_token;
+            prev_token->next = token;
+            prev_token = token;
+        }
         MetaParser(parser, major, token, tree);
         if(major < 0) {
             //TODO error reporting
             break;
         }
         if(0 == major) {
+            //TODO free the token chain
             efree(token);
             break;
         }

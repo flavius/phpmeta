@@ -64,12 +64,15 @@ const char* meta_token_repr(int n) {
 %extra_argument{ zval* tree }
 
 %token_destructor {
-    php_printf("\t\t\ttoken dtor: %p\n", $$);
+    php_printf("\t\t\ttoken dtor major=%d addr=%p minor: ", TOKEN_MAJOR($$), $$);
+    META_ZDUMP(TOKEN_MINOR($$));
+    php_printf("\n");
     //yeah, we shouldn't hide the warning
     if(tree == tree) {}
     //TODO we should ast_token_dtor($$)
-    zval_ptr_dtor(&TOKEN_MINOR($$));
-    efree($$);
+    //zval_ptr_dtor(&TOKEN_MINOR($$));
+    //efree($$);
+    //$$ = NULL;
 }
 
 %parse_accept {
@@ -187,29 +190,35 @@ const char* meta_token_repr(int n) {
 %type top_stmt_list{zval*}
 
 start(A) ::=  processing(B) . {
+    DBG("meta_parser.y %d", __LINE__);
+    zval *t_B = B;
     //TODO instead of crafting nodes manually, use the tree as a factory,
     //which instantiates the right classes if the user has some specific preferences
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     zval* ret_t = obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", B);
     zval_ptr_dtor(&ret_t);
+    /* A */ // NEVER USED, the node is attached directly to the tree
 }
 processing(A) ::= OUTSIDE_SCRIPTING(B) . {
-    DBG("line2 %d", __LINE__);
+    DBG("meta_parser.y %d", __LINE__);
+    TOKEN *t_B = B;
     ALLOC_INIT_ZVAL(A);
     A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC,
-        "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
+        "lzllz", TOKEN_MAJOR(B), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
     efree(B);
 }
 processing(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
     DBG("meta_parser.y %d", __LINE__);
+    zval *t_C = C;
+    TOKEN *t_B = B;
     //------------ create the processing node
     ALLOC_INIT_ZVAL(A);
 
     //TODO we may have a NULL in TOKEN_MINOR(B), based on scanner's settings, in that case create a new IS_NULL
     //TODO make obj_call_method_internal_ex turn a NULL into a IS_NULL zval* internally, so we don't have to create data it manually
     zval *stmt_endline = zend_read_property(META_CLASS(node), C, STRL_PAIR("end_line")-1, 0 TSRMLS_CC);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzzll", NT_processing, TOKEN_MINOR(B), tree, B->start_line, Z_LVAL_P(stmt_endline));
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", NT_processing, tree, B->start_line, Z_LVAL_P(stmt_endline), TOKEN_MINOR(B));
     efree(B);
     //------------- add children open_tag and C to A
     zend_function *setparent;
@@ -220,7 +229,20 @@ processing(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . { /* A B C D */ DB
 
 top_stmt_list(A) ::= LNUMBER(B) . {
     DBG("meta_parser.y %d", __LINE__);
+    TOKEN* start = B;
+    int i=0;
+    do {
+        start = start->prev;
+        i++;
+    } while(TOKEN_IS_DISPENSABLE(start));
+    start = start->next;
+    i--;
     ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzzll", TOKEN_MAJOR(B), TOKEN_MINOR(B), tree, B->start_line, B->end_line);
+    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", TOKEN_MAJOR(start), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
     efree(B);
+}
+
+top_stmt_list(A) ::= top_stmt_list(B) LNUMBER(C) . {
+    DBG("meta_parser.y %d", __LINE__);
+    /* A B C */
 }

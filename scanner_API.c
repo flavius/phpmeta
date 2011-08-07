@@ -42,7 +42,7 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
     elems = zend_ptr_stack_num_elements((*scanner)->buffer);
     while(elems--) {
         token = zend_ptr_stack_pop((*scanner)->buffer);
-        meta_token_dtor(token);
+        meta_token_dtor(&token, 1);
         //efree(token);
     }
     zend_ptr_stack_destroy((*scanner)->buffer);
@@ -51,14 +51,30 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
     efree(*scanner);
 }
 
-META_API void meta_token_dtor(TOKEN *tok) {
-    if(NULL != TOKEN_MINOR(tok)) {
-        //Z_DELREF_P(tok->minor);
-        zval_ptr_dtor(&((tok)->minor));
-        //zval_dtor(tok->minor);
-        //efree(tok->minor);
+//destroy all the tokens in the chain, and the token itself
+//if deep is true, destroy the minors as well
+META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
+    TOKEN **orig, *cursor;
+    orig = t;
+    cursor = (*t)->prev;
+    while(cursor) {
+        if(deep) {
+            zval_ptr_dtor(&TOKEN_MINOR(cursor));
+        }
+        *t = cursor;
+        cursor = cursor->prev;
+        efree(*t);
     }
-    efree(tok);
+    cursor = *orig;
+    while(cursor) {
+        if(deep) {
+            zval_ptr_dtor(&TOKEN_MINOR(cursor));
+        }
+        *t = cursor;
+        cursor = cursor->next;
+        efree(*t);
+    }
+    *orig=NULL;
 }
 
 META_API zval* meta_scanner_token_zval(TOKEN* t) {
@@ -90,7 +106,6 @@ META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
 
     scanner->buffer = emalloc(sizeof(zend_ptr_stack));
     zend_ptr_stack_init(scanner->buffer);
-    //zend_llist_init(scanner->buffer, sizeof(TOKEN*), meta_token_dtor, 0);
 
     return scanner;
 }
