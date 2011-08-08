@@ -19,6 +19,7 @@ META_API zval* meta_token_zval(TOKEN *token) {
     return tok_repr;
 }
 
+//create an array representation of token into the preallocated tok_repr
 META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
     array_init_size(tok_repr, 8);//8 instead of 5, so zend_hash_init doesn't need to round up
     add_assoc_long(tok_repr, "major", token->major);
@@ -33,6 +34,16 @@ META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
         add_assoc_null(tok_repr, "minor");
     }
 }
+//TODO integrate with the previous function
+META_API zval* meta_scanner_token_zval(TOKEN* t) {
+    zval* tzv;
+    MAKE_STD_ZVAL(tzv);
+    array_init(tzv);
+    add_assoc_long(tzv, "major", TOKEN_MAJOR(t));
+    return tzv;
+}
+
+
 
 META_API void meta_scanner_free(meta_scanner **scanner) {
     zval_ptr_dtor(&((*scanner)->rawsrc));
@@ -75,14 +86,6 @@ META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
         efree(*t);
     }
     *orig=NULL;
-}
-
-META_API zval* meta_scanner_token_zval(TOKEN* t) {
-    zval* tzv;
-    MAKE_STD_ZVAL(tzv);
-    array_init(tzv);
-    add_assoc_long(tzv, "major", TOKEN_MAJOR(t));
-    return tzv;
 }
 
 META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
