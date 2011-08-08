@@ -38,7 +38,7 @@ PHP_FUNCTION(meta_scanner_get) {
     }
     token = meta_scan(scanner TSRMLS_CC);
     meta_token_zval_ex(token, return_value);
-    meta_token_dtor(token);
+    meta_token_dtor(&token, 0);
 
     /*
     if(TOKEN_MAJOR(token) >= 0) {
