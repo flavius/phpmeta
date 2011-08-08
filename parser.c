@@ -175,18 +175,14 @@ PHP_METHOD(ASTNode, appendChild) {
 }
 
 PHP_METHOD(ASTNode, __destruct) {
-    /* TODO I am not sure about the following, things seem to work so far without ...
-     * any leaks, so leave it, but keep it in mind.
-     * it may become an issue when we move nodes around (?)
     zval *property;
     zval *obj;
 
     obj = getThis();
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("root")-1, 0 TSRMLS_CC);
+    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("data")-1, 0 TSRMLS_CC);
+    zval_ptr_dtor(&property);
+    //property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC); // TODO do same for "root"?
     //zval_ptr_dtor(&property);
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
-    //zval_ptr_dtor(&property);
-    */
 }
 
 //TODO arg info for all methods
