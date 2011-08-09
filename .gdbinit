@@ -2,18 +2,28 @@ set confirm off
 set breakpoint pending on
 
 set args -f my_t/test_parser.php
-break zif_meta_test
-break meta.c:53
+#break meta_scanner.re:36
+#break zif_meta_test
+#break meta.c:53
 #break obj_call_method_internal_ex
-break meta_parser.y:231
-break meta_parser.y:212
-break meta_parser.y:193
+break meta_parser.y:250
+#break meta_parser.y:231
+#break meta_parser.y:212
+#break meta_parser.y:193
 ################# common places for ZE2, php 5.3.3:
 ### leaking return value:
 #break zend_execute_API.c:983
 set logging on
 set logging overwrite on
 #set history save on
+
+define token_leak_dbg
+    info br 1
+    print t
+    print *start@len
+    backtrace
+    continue
+end
 
 define retval_leak_dbg
     info br 1

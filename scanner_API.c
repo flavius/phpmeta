@@ -64,28 +64,31 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
 
 //destroy all the tokens in the chain, and the token itself
 //if deep is true, destroy the minors as well
+//the entire process frees only an interval in the chain which is marked as freeable via TOKEN_IS_FREEABLE
+//as soon as it sees a non-freeable node, it marks it as the limit of the chain to be freed
+//TODO turn deep into a bitmask for things to do on the left, on the right, and on the starting node *t itself
+//three flags are possible: DEEP, IF_FREEABLE, FULL_STOP (stop as soon as you see a non-freeable element)
 META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
-    TOKEN **orig, *cursor;
-    orig = t;
+    TOKEN *cursor, *prev;
     cursor = (*t)->prev;
-    while(cursor) {
+    while(NULL != cursor && TOKEN_IS_FREEABLE(cursor)) {
         if(deep) {
             zval_ptr_dtor(&TOKEN_MINOR(cursor));
         }
-        *t = cursor;
+        prev = cursor;
         cursor = cursor->prev;
-        efree(*t);
+        efree(prev);
     }
-    cursor = *orig;
-    while(cursor) {
+    cursor = *t;
+    while(NULL != cursor && TOKEN_IS_FREEABLE(cursor)) {
         if(deep) {
             zval_ptr_dtor(&TOKEN_MINOR(cursor));
         }
-        *t = cursor;
+        prev = cursor;
         cursor = cursor->next;
-        efree(*t);
+        efree(prev);
     }
-    *orig=NULL;
+    *t=NULL;
 }
 
 META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {

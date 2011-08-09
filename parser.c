@@ -116,7 +116,7 @@ PHP_METHOD(ASTNode, __construct) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
-    if(NULL != minor) {
+    if(NULL == minor) {
         ALLOC_INIT_ZVAL(minor);
     }
     else if(!Z_ISREF_P(minor)) {//TODO ??? huh? why do we do this?
@@ -151,7 +151,7 @@ PHP_METHOD(ASTNode, setParentNode) {
         //TODO if old_parent is not null, detach from it
     }
 
-    META_UP_PROP(node, obj, "parent", parent);
+    //META_UP_PROP(node, obj, "parent", parent);
     zend_function *appendChild;
     zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
     index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0 TSRMLS_CC, "z", obj);
@@ -162,8 +162,7 @@ PHP_METHOD(ASTNode, setParentNode) {
 PHP_METHOD(ASTNode, appendChild) {
     zval *child, *children, *obj;
     ulong index;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-                &child, META_CLASS(node))) {
+    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &child)) {
         WRONG_PARAM_COUNT;
     }
     obj = getThis();
@@ -180,6 +179,9 @@ PHP_METHOD(ASTNode, __destruct) {
 
     obj = getThis();
     property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("data")-1, 0 TSRMLS_CC);
+
+    //Z_SET_REFCOUNT_P(property, 1);
+    META_ZDUMP(property);
     zval_ptr_dtor(&property);
     //property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC); // TODO do same for "root"?
     //zval_ptr_dtor(&property);

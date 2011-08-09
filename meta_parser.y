@@ -4,6 +4,7 @@
 #include "meta_scanner.h"
 #include "meta_parser.h"
 #include "parser_API.h"
+#include "scanner_API.h"
 #include "parser.h"
 #include "php_meta.h" //TODO remove, as far as META_ZDUMP() is not used
 
@@ -231,15 +232,36 @@ top_stmt_list(A) ::= LNUMBER(B) . {
     DBG("meta_parser.y %d", __LINE__);
     TOKEN* start = B;
     int i=0;
-    do {
+    while(NULL != start->prev && TOKEN_IS_DISPENSABLE(start->prev)) {
         start = start->prev;
         i++;
-    } while(TOKEN_IS_DISPENSABLE(start));
-    start = start->next;
-    i--;
+    }
     ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", TOKEN_MAJOR(start), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
-    efree(B);
+    if(!i) {
+        A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", TOKEN_MAJOR(start), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
+    }
+    else {
+        zval* data_i, *retv;
+        MAKE_STD_ZVAL(data_i);
+        ZVAL_LONG(data_i, i);
+        A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", TOKEN_MAJOR(start), tree, B->start_line, B->end_line, data_i);
+        zval_ptr_dtor(&data_i);
+        zend_function *appendChild;
+        zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
+        for(; start != NULL; start = start->next) {
+            //it's really "fill-in-the-blanks", so we don't waste an entire object for every token
+            retv = obj_call_method_internal_ex(A, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", TOKEN_MINOR(start));
+            zval_ptr_dtor(&retv);
+            TOKEN_IS_FREEABLE(start) = 1;
+            if(start == B) {
+                break;
+            }
+        }
+        META_UP_PROP(node, A, "data", TOKEN_MINOR(B));
+        //Z_ADDREF_P(TOKEN_MINOR(B));
+        Z_SET_ISREF_P(TOKEN_MINOR(B));
+    }
+    meta_token_dtor(&B, 0);
 }
 
 top_stmt_list(A) ::= top_stmt_list(B) LNUMBER(C) . {

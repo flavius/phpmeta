@@ -52,10 +52,11 @@ PHP_FUNCTION(meta_test) {
         major = TOKEN_MAJOR(token);
         php_printf("MAJOR: %lld\n", major);
         //--- start testing branch: skip spaces
+        /*
         if(133 == major) {
             meta_token_dtor(&token, 1);
             continue;
-        }
+        } */
         //--- end testing branch: skip spaces
         if(NULL == prev_token) {
             prev_token = token;

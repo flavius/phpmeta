@@ -35,6 +35,7 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     TOKEN_MAJOR(t) = major;
     TOKEN_MINOR(t) = NULL;
     t->dirty = 0;
+    t->free_me = 0;
     t->start_line = 0;
     t->end_line = 0;
     t->prev = NULL;
