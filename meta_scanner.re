@@ -248,6 +248,9 @@ do_transient_start:
     plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor);
     RETURN(plus);
 }
+<ST_IN_SCRIPTING>";" {
+    //TODO
+}
 /*
 
 these could be merged
