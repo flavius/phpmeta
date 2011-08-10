@@ -124,7 +124,7 @@ PHP_METHOD(ASTNode, __construct) {
     }
     META_UP_PROP_L(node, obj, "type", major);
     META_UP_PROP(node, obj, "data", minor);
-    META_UP_PROP(node, obj, "root", root);
+    //META_UP_PROP(node, obj, "root", root);
     META_UP_PROP_L(node, obj, "start_line", start_line);
     META_UP_PROP_L(node, obj, "end_line", end_line);
     MAKE_STD_ZVAL(children);

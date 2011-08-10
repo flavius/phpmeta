@@ -2,14 +2,7 @@ set confirm off
 set breakpoint pending on
 
 set args -f my_t/test_parser.php
-#break meta_scanner.re:36
-#break zif_meta_test
-#break meta.c:53
-#break obj_call_method_internal_ex
-break meta_parser.y:250
-#break meta_parser.y:231
-#break meta_parser.y:212
-#break meta_parser.y:193
+break meta_parser.y:212
 ################# common places for ZE2, php 5.3.3:
 ### leaking return value:
 #break zend_execute_API.c:983
