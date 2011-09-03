@@ -135,8 +135,8 @@ interpret PHP 5.3+ code.
 Roadmap
 =======
 
-With the 0.0.1 milestone ready, the user will be able to construct and
+With the 0.0.2 milestone ready, the user will be able to construct and
 modify the AST tree of simple math expressions and statements.
 
-As such, version 0.0.1 will be feature-complete, but only for a small
+As such, version 0.0.2 will be feature-complete, but only for a small
 subset of the language.
