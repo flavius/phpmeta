@@ -14,7 +14,7 @@ What is a syntax tree?
 ----------------------
 A syntax tree is the canonical representation of a source code. The code
 is parsed according to the tokens' [associativity](http://php.net/manual/en/language.operators.precedence.php)
-and precedence, and together they make a tree. For instance, the tree of the expression
+and precedence, and together they make a tree. For instance, the tree of the code:
 
     The answer is <?php echo 20+22;
 
