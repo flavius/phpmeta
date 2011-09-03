@@ -9,53 +9,56 @@ of implementing it.
 
 Meta is going to fill the gap between Reflection, runkit and the tokenizer.
 
+Current status
+==============
+
+Currently, work is being done on constructing the AST tree programatically.
+
+See a sample code in `tests/ASTUnaryNode_basic.phpt`.
+
+To be done:
+
+  * introduce classes for all language constructs out there (work has begun in
+  `parser.c`)
+  * make the scanner recognize all tokens (source: `php_scanner.re`)
+  * make the parser parse any valid source code (source: `php_parser.y`)
+  * introduce a non-obtrusive meta-parsing hook; this could be easily
+  done by putting `#@myhook`. When the node following after this "meta instruction"
+  is reduced, the hook is called, getting as parameter the AST node which has
+  just been reduced (**A**)
+    * alternative 1: the ASTTree holds a map of AST classes, if the user wishes
+  to hook his code, he can extend ASTTree and the target AST node's classes,
+  and a method like `ASTNode::reduce()` could be called (**B**)
+    * alternative 2: the ASTTree receives as parameter a map of XPath-like
+  expressions and callbacks. At reduction time, when an "ASTPath" is matched,
+  the appropiate callback is called (**C**)
+
+If and how A, B, C will be done, is subject to RFC. Any input is welcome.
+
+Already done:
+
+  * most of the work has been done by sitting in front of the whiteboard :-)
+
 What it can be used for
 =======================
 
-Meta can be used for empowering your scripts with meta-programming
-capabilities. For this, you need three things:
+  * meta programming
+  * pretty printing
+  * static code analysis
 
-  * the *processor* - the files where you implement the callbacks;
-  this is what drives the transformation from your meta-annotated
-  *source* to the end result
-  * the *source* - this is the code processed by the *processor*
-  * the *transformation code* - this code is responsible for
-  modifying the *source* according to your needs
-
-In the end you will get a *preprocessed code*. You do not need to
-process the source to get a *preprocessed code* as long as you
-don't modify *the source*.
-
-The *preprocessed code* will be the one to be executed instead of
-your *source*.
-
-The exact way of hooking the *transformation code* into the process
-is an open issue I am still researching on. There are two big ways:
-
-  * the *transformation code* will be part of the *source*. In
-  this case the hooking of the code will be done as a comment, so
-  your *source* will still remain syntactically correct
-  * the *transformation code* will be part of the *processor*.
-  In this case, the *source* will remain clean, not annotated with
-  any *transformation code*
-
-It may look daunting to use it, but it could work seamlessly in modern
-PHP applications. Modern PHP applications use the autoloading
-functionality of PHP - you could arrange it such that the preprocessing
-of the *source* is done there, as well as caching the resulting
-*preprocessed code*.
+(each of them not by itself, but by providing the necessary infrastructure)
 
 How to use it
 =============
 
-The API is still in the concept phase, but I'd like to hear from
-you - I'm open to suggestions and ideas.
-
+Please see the `tests/` to get an idea of how it could be used.
+Keep in mind this is a work in progress, a prototype. The code
+is rough and there are many TODOs (many of them documented though).
 
 Internals
 =========
 
-Meta is using re2c for the lexer generator and a patched version of lemon
+Meta is using re2c as the lexer generator and a patched version of lemon
 for the parser.
 
 The extension is split in two, the scanner and the parser, each made
@@ -75,33 +78,26 @@ to CG (and as such, `php.ini`). The Meta's scanner is aimed at scanning
 any kind of input, no matter if the host where it is run has `short_tags`
 on or not, for example.
 
-Coding conventions
-------------------
+The ZE's lexer could not be used also because it doesn't keep some of
+the terminal's values. `meta_scanner.re` does that if you provide
+the appropiate flags (**NOTE**: not actually done yet, but the flags
+fields are in place, both for the scanner, and the `ASTTree`).
+This way, we can make the difference between
+"echo" and "ecHo" - tools for checking the coding standard could be
+written on top of that.
 
-Internal functions which could be reused are marked as `META_API`. All
-these functions have the `meta_` prefix. The scanner specific
-functions have the prefix `meta_scan` or `meta_scanner` and the
-parser-specific ones have the prefixes `meta_parse` or `meta_parser`.
-The parser also contains the `MetaParser*` functions, as generated
-by lemon.
+Also, one main priority is to be able to analyze php6 code just by
+having the latest version of this extension, not necessarily php6
+altogether.
 
-The scanner contains all the token-handling functions, which have
-the prefix `meta_token_`, while the parser contains similar functions
-for AST nodes starting with `meta_node_`.
-
-Current status
---------------
-
-Currently the scanner's basic structure is set in stone, but it doesn't
-tokenize any kind of input, only inline html, and numbers and whitespaces
-inside PHP processing, and the + operation.
-
-I am still looking at ways to construct the AST, the internal representation
-of AST nodes, and exposing it to the runtime. Internally, experiments
-are done in `PHP_FUNCTION(meta_test)`.
+As php 5.2 is not supported any longer, this extension is supposed to
+work on 5.3+.
 
 Roadmap
--------
+=======
 
 With the 0.0.1 milestone ready, the user will be able to construct and
-modify the AST tree of simple math expressions.
+modify the AST tree of simple math expressions and statements.
+
+As such, version 0.0.1 will be feature-complete, but only for a small
+subset of the language.

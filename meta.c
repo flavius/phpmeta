@@ -11,78 +11,7 @@
 #include "parser.h"
 #include <stdarg.h>
 
-//#define DEBUG
-
-//new feature testing, TODO: remove before 0.0.1
 PHP_FUNCTION(meta_test) {
-    zval *src;
-    meta_scanner* scanner;
-    TOKEN *token, *prev_token=NULL;
-    void *parser;
-    zval* tree=NULL;
-    long long major;
-
-    /** -------------- instantiate object and call method ------
-    //---- instantiate the object
-    zval *tree3;
-    ALLOC_INIT_ZVAL(tree3);
-    tree3 = obj_call_method_internal_ex(tree3, php_meta_asttree_ce, php_meta_asttree_ce->constructor, EG(scope), 1, 1 TSRMLS_CC, NULL);
-    //---- find a function of a class
-    zend_function *appendChild;
-    zend_hash_find(&php_meta_asttree_ce->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    //---- call the function
-    zval *child;
-    ALLOC_INIT_ZVAL(child);
-    obj_call_method_internal_ex(tree3, php_meta_asttree_ce, appendChild, EG(scope), 0, 1 TSRMLS_CC, "z", child);
-    RETVAL_ZVAL(tree3, 0, 1);
-    return;
-
-    ** ----------------------- */
-
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &src)) {
-        WRONG_PARAM_COUNT;
-    }
-    scanner = meta_scanner_alloc(src, SFLAGS_MOST);
-    parser = MetaParserAlloc(meta_alloc);
-    ALLOC_INIT_ZVAL(tree);
-    tree = obj_call_method_internal_ex(tree, META_CLASS(tree), META_CLASS(tree)->constructor, EG(scope), 1 TSRMLS_CC, NULL);
-
-    do {
-        token = meta_scan(scanner TSRMLS_CC);
-        major = TOKEN_MAJOR(token);
-        php_printf("MAJOR: %lld\n", major);
-        //--- start testing branch: skip spaces
-        /*
-        if(133 == major) {
-            meta_token_dtor(&token, 1);
-            continue;
-        } */
-        //--- end testing branch: skip spaces
-        if(NULL == prev_token) {
-            prev_token = token;
-        }
-        else {
-            token->prev = prev_token;
-            prev_token->next = token;
-            prev_token = token;
-        }
-        MetaParser(parser, major, token, tree);
-        if(major < 0) {
-            //TODO error reporting
-            break;
-        }
-        if(0 == major) {
-            //TODO free the token chain
-            efree(token);
-            break;
-        }
-        else {
-            //META_ZDUMP(TOKEN_MINOR(token));
-        }
-    } while(major > 0);
-    MetaParserFree(parser, meta_free);
-    meta_scanner_free(&scanner);
-    RETVAL_ZVAL(tree, 0, 1);
 }
 
 static function_entry php_meta_functions[] = {
@@ -93,20 +22,18 @@ static function_entry php_meta_functions[] = {
     ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 
-//TODO detect if the token ext is activated, if no, activate backwards compatibility
-//TODO expose both the scanner and the parser to the runtime
-
 PHP_MINIT_FUNCTION(meta) {
     int status = SUCCESS;
     status = meta_parser_init_function(INIT_FUNC_ARGS_PASSTHRU);
     if(FAILURE == status) {
         return FAILURE;
     }
-    //TODO call scanner & parser's own initialisation from scanner.c and parser.c respectively
+    //TODO move the following scanner initialization into it's own function and call that instead
     meta_scanner_descriptor = zend_register_list_destructors_ex(
             php_meta_scanner_dtor, NULL,
             PHP_META_SCANNER_DESCRIPTOR_RES_NAME, module_number);
     zend_register_long_constant("META_SFLAG_SHORT_OPEN_TAG", sizeof("META_SFLAG_SHORT_OPEN_TAG"), SFLAG_SHORT_OPEN_TAG, CONST_CS|CONST_PERSISTENT, module_number TSRMLS_CC);
+    //end scanner "initialization" (not yet complete)
     return SUCCESS;
 }
 
@@ -128,8 +55,6 @@ ZEND_GET_MODULE(meta)
 #endif
 
 
-//"internal" functions
-
 //TODO move these into the parser
 void *meta_alloc(size_t size) {
     return emalloc(size);
@@ -139,10 +64,6 @@ void meta_free(void* ptr) {
     efree(ptr);
 }
 
-//TODO use COPY_PZVAL_TO_ZVAL(*return_value, ret) in the caller
-
-
-//TODO unify return_object and native_null into one single param
 zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
        zend_bool native_null TSRMLS_DC, char* fmt, ...) {
 
@@ -157,14 +78,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
         va_list temp_argv;
 
         va_start(argv, fmt);
-        //--- START TEST
-        //int l = va_arg(argv, int);
-        //php_printf("---- L is: %d\n", l);
-        //--- END TEST
-        //TODO: do we need this? ZE2 doesn't use it
         va_copy(temp_argv, argv);
-        //long l = va_arg(argv, long);
-        //TODO check against arginfo?
         params = get_params_ex(fmt, &temp_argv);
         va_end(temp_argv);
         va_end(argv);
@@ -195,6 +109,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
 
     //if we want the object, and the object is not an object yet, we init it
     if(func == ce->constructor) {
+        //TODO check obj's refcount, it has to be 1
         if(IS_NULL == Z_TYPE_P(obj)) {
             object_init_ex(obj, ce);
         }
@@ -233,7 +148,7 @@ clean_params:
             retval_ptr = NULL;
         }
         else {
-            //TODO warning: if we reach this, it means the caller destroys the retval himself
+            //TODO internal error: the caller (also C code) expects a native NULL ptr, but the method we've called returns something else than a IS_NULL
         }
     }
     return retval_ptr;
@@ -286,7 +201,6 @@ zval** get_params_ex(const char *fmt, va_list *argp) {
             case 'z':
                 z = va_arg(*argp, zval*);
                 //TODO if z is NULL, turn it into a IS_NULL
-                Z_ADDREF_P(z);
                 params[i] = z;
                 break;
             default:
@@ -309,3 +223,4 @@ zval** get_params(const char *fmt, ...) {
     va_end(argp);
     return ret;
 }
+

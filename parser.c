@@ -1,254 +1,770 @@
 #include <zend.h>
+#include <zend_interfaces.h>
 #include <php.h>
+#include <standard/php_string.h>
+#include "meta_parser.h" // for T_ terminal definitions
+#include "meta_scanner.h"
+#include "scanner_API.h"
+#define _INTERNAL
 #include "parser.h"
-
-#include "php_meta.h" // for meta_zdump, TODO remove if not used
-
-//TODO remove this
-#if 1
-#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
-#else
-#define DBG(fmt, args...)
-#endif
-
 
 /* {{{ create and initialize internal classes
  */
 int meta_parser_init_function(INIT_FUNC_ARGS) {
     zend_class_entry ce;
 
-    //--  ASTNode
+    //-- ASTNode
     INIT_CLASS_ENTRY(ce, PHP_META_ASTNODE_CE_NAME, php_meta_astnode_functions);
     META_CLASS(node) = zend_register_internal_class(&ce TSRMLS_CC);
-    META_PROP_ZERO(node, "type");
-    META_PROP_ZERO(node, "start_line");
-    META_PROP_ZERO(node, "end_line");
-    META_PROP_NULL(node, "data");
-    META_PROP_NULL(node, "children");
-    META_PROP_NULL(node, "root");
-    META_PROP_NULL(node, "parent");
-    META_PROP_ZERO(node, "index");
+	META_CLASS(node)->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
+	META_PROP_ZERO(node, "type", PROTECTED);
+	META_PROP_NULL(node, "root", PROTECTED);
+	META_PROP_NULL(node, "parent", PROTECTED);
+	META_PROP_NULL(node, "index", PROTECTED);
+	META_PROP_ZERO(node, "start_line", PROTECTED);
+	META_PROP_ZERO(node, "end_line", PROTECTED);
 
-    //-- ASTTree
-    INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
-    META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
-    META_PROP_NULL(tree, "children");
+	//-- ASTNodeList
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODELIST_CE_NAME, php_meta_astnodelist_functions);
+	META_CLASS(nodelist) = zend_register_internal_class(&ce TSRMLS_CC);
+	META_PROP_NULL(nodelist, "root", PROTECTED);
+	META_PROP_NULL(nodelist, "parent", PROTECTED);
+	META_PROP_L(nodelist, "index", PROTECTED, -1);
+	META_PROP_ZERO(nodelist, "start_line", PROTECTED);
+	META_PROP_ZERO(nodelist, "end_line", PROTECTED);
+	META_PROP_NULL(nodelist, "children", PROTECTED);
+	memcpy(&nodelist_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	META_CLASS(nodelist)->create_object = create_object_nodelist;
+
+	//-- ASTTree
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
+	META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(nodelist), PHP_META_ASTNODELIST_CE_NAME TSRMLS_CC);
+	META_PROP_ZERO(tree, "source", PROTECTED);
+	META_PROP_ZERO(tree, "flags", PROTECTED);
+	memcpy(&tree_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	META_CLASS(tree)->create_object = create_object_tree;
+
+	//-- ASTUnaryNode
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTUNARYNODE_CE_NAME, php_meta_astunarynode_functions);
+	META_CLASS(unarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
+	META_PROP_NULL(unarynode, "operator", PROTECTED);
+	// fill nodes between "children[0]" and "operand"
+	META_PROP_NULL(unarynode, "fill", PROTECTED);
+	META_PROP_NULL(unarynode, "operand", PROTECTED);
+	memcpy(&unarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	META_CLASS(unarynode)->create_object = create_object_unarynode;
+
+	//-- ASTBinaryNode
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTBINARYNODE_CE_NAME, php_meta_astbinarynode_functions);
+	META_CLASS(binarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
+	META_PROP_NULL(binarynode, "lhs", PROTECTED);
+	META_PROP_NULL(binarynode, "rhs", PROTECTED);
+	META_PROP_NULL(binarynode, "operator", PROTECTED);
+	META_PROP_NULL(binarynode, "between_lhs_operator", PROTECTED);
+	META_PROP_NULL(binarynode, "between_operator_rhs", PROTECTED);
+	memcpy(&binarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
+	META_CLASS(binarynode)->create_object = create_object_binarynode;
+
+	//-- ASTTernaryNode
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTTERNARYNODE_CE_NAME, php_meta_astternarynode_functions);
+	META_CLASS(ternarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
+	META_PROP_NULL(ternarynode, "condition", PROTECTED);
+	META_PROP_NULL(ternarynode, "true", PROTECTED);
+	META_PROP_NULL(ternarynode, "false", PROTECTED);
 
     //TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it)
+	//TODO register symbolic constants for flags
 
     return SUCCESS;
 }
 /* }}} */
-/* {{{ The ASTTree class
- */
-PHP_METHOD(ASTTree, __construct) {
-    zval *children;
-    zval *obj = getThis();
-
-    MAKE_STD_ZVAL(children);
-    array_init(children);
-    META_UP_PROP(tree, obj, "children", children);
-    Z_DELREF_P(children);
-}
-
-PHP_METHOD(ASTTree, __destruct) {
-    zval *children=NULL;
-    zval *obj = getThis();
-    children = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
-    zval_ptr_dtor(&children);
-}
-
-PHP_METHOD(ASTTree, appendChild) {
-    zval* children;
-    zval *child;
-    zval* obj;
-
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-                &child)) {
-        WRONG_PARAM_COUNT;
-    }
-    obj = getThis();
-    children = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
-    add_next_index_zval(children, child);
-}
-
-PHP_METHOD(ASTTree, removeChild) {
-    //zval *children;
-    //TODO remove child by object or by tree-path, return removed node
-}
-
-PHP_METHOD(ASTTree, hasChildNodes) {
-    zval *children;
-    children = zend_read_property(META_CLASS(tree), getThis(), STRL_PAIR("children")-1, 0 TSRMLS_CC);
-    RETURN_BOOL(zend_hash_num_elements(Z_ARRVAL_P(children)));
-}
-
-PHP_METHOD(ASTTree, __toString) {
-    //TODO serialize the tree to valid PHP code, according to some flags of the tree
-    //TODO introduce flags
-    //in practice, we would iterate the tree and serialize each node, recursively
-}
-
-/* }}} */
-//TODO arg info for all methods
-/* {{{ arg info
- */
-ZEND_BEGIN_ARG_INFO_EX(php_meta_onearg, 0, 0, 1)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_INFO_EX(php_meta_twoargs, 0, 0, 2)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_INFO_EX(php_meta_fourargs, 0, 0, 4)
-ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_INFO_EX(php_meta_fiveargs, 0, 0, 5)
-ZEND_END_ARG_INFO()
-/* }}} */
-/* {{{ ASTTree methods
- */
-static const function_entry php_meta_asttree_functions[] = {
-    PHP_ME(ASTTree, __construct,        NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
-    PHP_ME(ASTTree, __destruct,         NULL, ZEND_ACC_DTOR|ZEND_ACC_PUBLIC)
-    //PHP_ME(ASTTree, appendChild,        php_meta_onearg, ZEND_ACC_PUBLIC)
-    //PHP_ME(ASTTree, removeChild,        NULL, ZEND_ACC_PUBLIC)
-    //PHP_ME(ASTTree, hasChildNodes,      NULL, ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
-};
-/* }}} */
-/* {{{ The ASTNode class
- */
-/* {{{ proto public void ASTNode::__construct(int major, ASTTree root, int start_line, int end_line [, mixed minor])
-   Create new node */
-PHP_METHOD(ASTNode, __construct) {
-    long major, start_line, end_line;
-    zval *obj, *minor=NULL, *root, *children;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lOll|z",
-                &major, &root, META_CLASS(tree), &start_line, &end_line, &minor)) {
-        WRONG_PARAM_COUNT;
-    }
-    obj = getThis();
-    if(NULL == minor) {
-        ALLOC_INIT_ZVAL(minor);
-    }
-    else if(!Z_ISREF_P(minor)) {//TODO ??? huh? why do we do this?
-        Z_DELREF_P(minor);
-    }
-    META_UP_PROP_L(node, obj, "type", major);
-    META_UP_PROP(node, obj, "data", minor);
-    META_UP_PROP(node, obj, "root", root);
-    META_UP_PROP_L(node, obj, "start_line", start_line);
-    META_UP_PROP_L(node, obj, "end_line", end_line);
-    MAKE_STD_ZVAL(children);
-    array_init(children);
-    META_UP_PROP(node, obj, "children", children);
-    Z_DELREF_P(children);
-
-    //add myself to the root tree
-    //TODO instead of searching for the function every time, find it once in MINIT and reuse it every time
-    //zend_function *appendChild;
-    //zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    //obj_call_method_internal_ex(root, META_CLASS(tree), appendChild, META_CLASS(node), 0, 1 TSRMLS_CC, "z", obj);
-}
-/* }}} */
-/* {{{ pending for deletion
- */
-PHP_METHOD(ASTNode, setParentNode) {
-    php_printf("you never setParentNode, appendChild instead!");
-    /*
-    zval *parent, *obj, *old_parent, *index;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-                &parent, META_CLASS(node))) {
-        WRONG_PARAM_COUNT;
-    }
-    obj = getThis();
-    old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
-    if(IS_NULL != Z_TYPE_P(old_parent)) {
-        //TODO if old_parent is not null, detach from it
-    }
-
-    META_UP_PROP(node, obj, "parent", parent);
-    zend_function *appendChild;
-    zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    index = obj_call_method_internal_ex(parent, META_CLASS(node), appendChild, META_CLASS(node), 0 TSRMLS_CC, "z", obj);
-    META_UP_PROP_L(node, obj, "index", Z_LVAL_P(index));
-    zval_ptr_dtor(&index);
-    */
-}
-/* }}} */
-/* {{{ proto public int ASTNode::appendChild(mixed child)
-   Appends child to this node, returning its index */
-PHP_METHOD(ASTNode, appendChild) {
-    zval *child, *property, *obj;
-    ulong index;
-    if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &child)) {
-        WRONG_PARAM_COUNT;
-    }
-    //TODO child can be either string, or ASTNode (?)
-    obj = getThis();
-    //-- add child to our children
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
-    add_next_index_zval(property, child);
-    index = zend_hash_next_free_element(Z_ARRVAL_P(property))-1;
-    if(IS_OBJECT == Z_TYPE_P(child)) {
-        //-- set child's parent
-        property = zend_read_property(META_CLASS(node), child, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
-        //TODO if old parent !IS_NULL, detach child from it
-        META_UP_PROP(node, child, "parent", obj);
-        //-- set child's index
-        property = zend_read_property(META_CLASS(node), child, STRL_PAIR("index")-1, 0 TSRMLS_CC);
-        META_UP_PROP(node, child, "index", property);
-    }
-
-    //TODO (signed/unsigned) integer overflow?
-    RETURN_LONG(index);
-}
-/* }}} */
-/* {{{ proto public void ASTNode::__destruct()
- */
-PHP_METHOD(ASTNode, __destruct) {
-    zval *property;
-    zval *obj;
-
-    obj = getThis();
-    property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("data")-1, 0 TSRMLS_CC);
-    zval_ptr_dtor(&property);
-
-    //Z_SET_REFCOUNT_P(property, 1);
-    //META_ZDUMP(property);
-    //property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC); // TODO do same for "root"?
-    //zval_ptr_dtor(&property);
-}
-/* }}} */
-/* {{{ proto public string ASTNode::__toString()
- */
-PHP_METHOD(ASTNode, __toString) {
-	zval *property;
+/* {{{ abstract class ASTNode */
+/* {{{ proto public void ASTNode::setLines(int $start, int $end)
+ * Set the lines across this node spreads out */
+PHP_METHOD(ASTNode, setLines) {
+	long start, end;
 	zval *obj;
-	zval *child;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll",
+				&start, &end)) {
+		WRONG_PARAM_COUNT;
+	}
 	obj = getThis();
-	property = zend_read_property(META_CLASS(node), obj, STRL_PAIR("data")-1, 0 TSRMLS_CC);
-	if(IS_NULL != Z_TYPE_P(property)) {
-		//TODO return property
+	META_UP_PROP_L(node, obj, "start_line", start);
+	META_UP_PROP_L(node, obj, "end_line", end);
+}
+/* }}} */
+/* {{{ proto public void ASTNode::setIndex(int index)
+ * set the index of this node within the parent */
+PHP_METHOD(ASTNode, setIndex) {
+	zval *obj, *parent;
+	long index;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l",
+				&index)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	if(IS_NULL == Z_TYPE_P(parent)) {
+		//TODO error "cannot set index without a parent", return
 	}
 	else {
-		//iterate children
-		//use concat_function() from zend_operators.c
+		//check if index is valid, call parent perhaps?
 	}
-    RETURN_STRINGL("hello ", sizeof("hello"), 1);
+	META_UP_PROP_L(node, obj, "index", index);
 }
 /* }}} */
+/* {{{ proto public void ASTNode::setParent(mixed $parent)
+ * Set the parent, an ASTNode or ASTNodeList (or subclasses thereof) */
+PHP_METHOD(ASTNode, setParent) {
+	zval *obj, *parent, *old_parent;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&parent)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	//TODO check class of parent
+	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	if(old_parent != parent) {
+		if(IS_NULL != Z_TYPE_P(old_parent)) {
+			//TODO detach from old parent, if different
+		}
+		//TODO notify the parent?
+		META_UP_PROP(node, obj, "parent", parent);
+		Z_ADDREF_P(parent);
+	}
+}
 /* }}} */
-//TODO arg info for all methods
 /* {{{ ASTNode methods
  */
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setlines, 0, 0, 2)
+	ZEND_ARG_INFO(0, start)
+	ZEND_ARG_INFO(0, end)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setindex, 0, 0, 1)
+	ZEND_ARG_INFO(0, index)
+ZEND_END_ARG_INFO()
+//TODO how to specify a list of allowed classes? ASTNodeList and ASTNode in this case
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, parent, ASTNodeList, 0)
+ZEND_END_ARG_INFO()
+
 static const function_entry php_meta_astnode_functions[] = {
-    PHP_ME(ASTNode, __construct,        php_meta_fiveargs, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, __destruct,         NULL, ZEND_ACC_DTOR|ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, __toString,         NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, setParentNode,      php_meta_onearg, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, appendChild,        php_meta_onearg, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTNode, setLines,			arginfo_node_setlines, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTNode, setIndex,			arginfo_node_setindex, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTNode, setParent,			arginfo_node_setparent, ZEND_ACC_PUBLIC)
     ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
+/* }}} */
+/* {{{ class ASTNodeList */
+/* {{{ internal handlers */
+static zend_object_handlers nodelist_handlers;
+static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) {
+	zend_object_value retval;
+	zend_object *obj;
+	zval *property;
 
+	obj = emalloc(sizeof(zend_object));
+	zend_object_std_init(obj, ce TSRMLS_CC);
+	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
+
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "children", property);
+
+	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handlers = &nodelist_handlers;
+	return retval;
+}
+/* }}} */
+/* {{{ proto public void ASTNodeList::__construct(ASTTree $tree) */
+PHP_METHOD(ASTNodeList, __construct) {
+	zval *obj, *root;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
+				&root, META_CLASS(tree))) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(nodelist, obj, "root", root);
+	Z_ADDREF_P(root);
+}
+/* }}} */
+/* {{{ proto public string ASTNodeList::__toString() */
+PHP_METHOD(ASTNodeList, __toString) {
+	zval *obj, *children, *delim;
+
+	obj = getThis();
+	children = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
+	ALLOC_INIT_ZVAL(delim);
+	php_implode(delim, children, return_value TSRMLS_CC);
+	zval_ptr_dtor(&delim);
+}
+/* }}} */
+/* {{{ proto public void ASTNodeList::appendChild(mixed $node) */
+PHP_METHOD(ASTNodeList, appendChild) {
+	zval *obj, *children, *child;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&child)) {
+		WRONG_PARAM_COUNT;
+	}
+	Z_ADDREF_P(child);
+	obj = getThis();
+	children = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
+	add_next_index_zval(children, child);
+}
+/* }}} */
+/* {{{ proto public bool ASTNodeList::hasChildren() */
+PHP_METHOD(ASTNodeList, hasChildren) {
+	zval *children;
+	children = zend_read_property(META_CLASS(nodelist), getThis(), STRL_PAIR("children")-1, 0 TSRMLS_CC);
+	RETURN_BOOL(zend_hash_num_elements(Z_ARRVAL_P(children)));
+}
+/* }}} */
+/* {{{ proto public void ASTNodeList::setLines(int $start, $int $end) */
+PHP_METHOD(ASTNodeList, setLines) {
+	long start, end;
+	zval *obj;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll",
+				&start, &end)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP_L(nodelist, obj, "start_line", start);
+	META_UP_PROP_L(nodelist, obj, "end_line", end);
+}
+/* }}} */
+/* {{{ ASTNodeList methods */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_construct, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_tostring, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_appendchild, 0, 0, 1)
+	ZEND_ARG_INFO(0, node)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_haschildren, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setlines, 0, 0, 2)
+	ZEND_ARG_INFO(0, start)
+	ZEND_ARG_INFO(0, end)
+ZEND_END_ARG_INFO()
+
+static const function_entry php_meta_astnodelist_functions[] = {
+    PHP_ME(ASTNodeList, __construct,		arginfo_nodelist_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, __toString,			arginfo_nodelist_tostring, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, appendChild,		arginfo_nodelist_appendchild, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, hasChildren,		arginfo_nodelist_haschildren, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, setLines,			arginfo_nodelist_setlines, ZEND_ACC_PUBLIC)
+    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
+/* {{{ class ASTTree extends ASTNodeList */
+/* {{{ internal handlers */
+
+static zend_object_handlers tree_handlers;
+
+static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
+	zend_object_value retval;
+	zend_object *obj;
+	zval *property;
+
+	obj = emalloc(sizeof(zend_object));
+	zend_object_std_init(obj, ce TSRMLS_CC);
+	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
+
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "children", property);
+
+	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handlers = &tree_handlers;
+
+	return retval;
+}
+/* }}} */
+/* {{{ proto public void ASTTree::__construct(int $flags [,mixed $source])
+ * TODO: it could be useful to set root = getThis(), so we can use the nodelist' find() method (when/if it will be implemented)
+ */
+PHP_METHOD(ASTTree, __construct) {
+	zval *obj;
+	long flags;
+	zval *source;
+
+	source=NULL;
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|z",
+				&flags, &source)) {
+		WRONG_PARAM_COUNT;
+	}
+	//TODO: if source not string or file, then fail
+	obj = getThis();
+	META_UP_PROP_L(tree, obj, "flags", flags);
+	if(source) {
+		META_UP_PROP(tree, obj, "source", source);
+		Z_ADDREF_P(source);
+	}
+}
+/* }}} */
+/* {{{ proto public string ASTTree::__toString()
+ * Return the string representation of the entire tree, which is valid PHP code */
+    //TODO serialize the tree to valid PHP code, according to some flags of the tree
+    //TODO introduce flags
+    //in practice, we would iterate children, and let each one serialize itself, while gradually concatenating the result
+	//use concat_function() from zend_operators.c
+/* }}} */
+/* {{{ proto public void ASTTree::setFlags(int $flags) */
+PHP_METHOD(ASTTree, setFlags) {
+	zval *obj;
+	long flags;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l",
+				&flags)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP_L(tree, obj, "flags", flags);
+}
+/* }}} */
+/* {{{ proto public int ASTTree::getFlags() */
+PHP_METHOD(ASTTree, getFlags) {
+	zval *flags;
+	flags = zend_read_property(META_CLASS(tree), getThis(), STRL_PAIR("flags")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(flags, 0, 1);
+}
+/* }}} */
+/* {{{ proto public void ASTTree::setSource(mixed $source) */
+PHP_METHOD(ASTTree, setSource) {
+	zval *obj, *source;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&source)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(tree, obj, "source", source);
+}
+/* }}} */
+/* {{{ proto public void ASTTree::parse([int $flags]) */
+PHP_METHOD(ASTTree, parse) {
+	zval *obj, *flags, *source;
+	meta_scanner *scanner;
+	TOKEN *token, *prev_token;
+	void *parser;
+	long major;
+
+	flags = NULL;
+	prev_token = NULL;
+	token = NULL;
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "|z", &flags)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	if(!flags) {
+		flags = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("flags")-1, 0 TSRMLS_CC);
+	}
+	source = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("source")-1, 0 TSRMLS_CC);
+	//TODO source can be IS_NULL, check it first, fail if necessary
+
+	scanner = meta_scanner_alloc(source, Z_LVAL_P(flags));
+	parser = MetaParserAlloc(meta_alloc);
+
+	do {
+		token = meta_scan(scanner TSRMLS_CC);
+		//TODO check scanner->err_no
+		major = TOKEN_MAJOR(token);
+        if(NULL == prev_token) {
+            prev_token = token;
+        }
+        else {
+            token->prev = prev_token;
+            prev_token->next = token;
+            prev_token = token;
+        }
+		MetaParser(parser, major, token, obj);
+		if(major < 0) {
+			//TODO error reporting
+			break;
+		}
+		if(0 == major) {
+			efree(token);
+			break;
+		}
+	} while(major > 0);
+
+	MetaParserFree(parser, meta_free);
+	meta_scanner_free(&scanner);
+}
+/* }}} */
+/* {{{ ASTTree methods */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_construct, 0, 0, 1)
+	ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_tostring, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_setflags, 0, 0, 1)
+	ZEND_ARG_INFO(0, flags)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_getflags, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_setsource, 0, 0, 1)
+	ZEND_ARG_INFO(0, source)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_tree_parse, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+
+static const function_entry php_meta_asttree_functions[] = {
+	PHP_ME(ASTTree, __construct,		arginfo_tree_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTTree, setFlags,			arginfo_tree_setflags, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTTree, getFlags,			arginfo_tree_getflags, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTTree, setSource,			arginfo_tree_setsource, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTTree, parse,			arginfo_tree_parse, ZEND_ACC_PUBLIC)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
+/* {{{ class ASTUnaryNode extends ASTNode */
+/* {{{ internal handlers */
+static zend_object_handlers unarynode_handlers;
+static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC) {
+	zend_object_value retval;
+	zend_object *obj;
+	zval *property;
+
+	obj = emalloc(sizeof(zend_object));
+	zend_object_std_init(obj, ce TSRMLS_CC);
+	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
+
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "fill", property);
+
+	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handlers = &unarynode_handlers;
+	return retval;
+}
+
+/* }}} */
+/* {{{ proto public void ASTUnaryNode::__construct(int $type, ASTTree $tree [, mixed $operand [, string $operator]]) */
+PHP_METHOD(ASTUnaryNode, __construct) {
+	zval *obj, *operand, *root, *operator;
+	long type;
+
+	operand = NULL;
+	operator = NULL;
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lO|zz",
+				&type, &root, META_CLASS(tree), &operand, &operator)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP_L(unarynode, obj, "type", type);
+	META_UP_PROP(unarynode, obj, "root", root);
+	Z_ADDREF_P(root);
+	if(NULL != operand) {
+		META_UP_PROP(unarynode, obj, "operand", operand);
+		Z_ADDREF_P(operand);
+	}
+	if(NULL != operator) {
+		META_UP_PROP(unarynode, obj, "operator", operator);
+		Z_ADDREF_P(operator);
+	}
+}
+/* }}} */
+/* {{{ proto public void ASTUnaryNode::__toString() */
+PHP_METHOD(ASTUnaryNode, __toString) {
+	zval *obj, *property, *delim, *fill;
+
+	obj = getThis();
+	RETVAL_EMPTY_STRING();
+	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
+	if(IS_NULL == Z_TYPE_P(property)) {
+		//TODO get default representation for operator $type
+	}
+	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
+		//TODO never occurs
+	}
+	ALLOC_INIT_ZVAL(delim);
+	ALLOC_INIT_ZVAL(fill);
+	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	//TODO XXX if property is empty, fill it with default values (like the ' ' between echo and an expression)
+	php_implode(delim, property, fill TSRMLS_CC);
+	zval_ptr_dtor(&delim);
+	if(FAILURE == concat_function(return_value, return_value, fill TSRMLS_CC)) {
+		//TODO but concat_function never returns FAILURE
+	}
+	zval_ptr_dtor(&fill);
+	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operand")-1, 0 TSRMLS_CC);
+	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
+		//TODO never occurs
+	}
+}
+/* }}} */
+/* {{{ proto public void ASTUnaryNode::setOperand(mixed $operand) */
+PHP_METHOD(ASTUnaryNode, setOperand) {
+	zval *obj, *operand;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &operand)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(unarynode, obj, "operand", operand);
+	Z_ADDREF_P(operand);
+}
+/* }}} */
+/* {{{ proto public void ASTUnaryNode::setOpRepresentation(string $operator) */
+PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
+	zval *obj, *operator;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &operator)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(unarynode, obj, "operator", operator);
+	Z_ADDREF_P(operator);
+}
+/* }}} */
+/* {{{ proto public void ASTUnaryNode::appendBetween(mixed $child)
+ * Append $child to the nodes filling the space between the operator and the operand */
+PHP_METHOD(ASTUnaryNode, appendBetween) {
+	zval *obj, *fill, *child;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&child)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	Z_ADDREF_P(child);
+	fill = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	add_next_index_zval(fill, child);
+}
+
+/* }}} */
+/* {{{ ASTUnaryNode methods */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_construct, 0, 0, 2)
+	ZEND_ARG_INFO(0, type)
+	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_tostring, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_setoperand, 0, 0, 1)
+	ZEND_ARG_INFO(0, operand)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_setoprepresentation, 0, 0, 1)
+	ZEND_ARG_INFO(0, operator)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_appendbetween, 0, 0, 1)
+	ZEND_ARG_INFO(0, child)
+ZEND_END_ARG_INFO()
+
+static const function_entry php_meta_astunarynode_functions[] = {
+    PHP_ME(ASTUnaryNode, __construct,			arginfo_unarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+    PHP_ME(ASTUnaryNode, __toString,			arginfo_unarynode_tostring, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTUnaryNode, setOperand,			arginfo_unarynode_setoperand, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTUnaryNode, setOpRepresentation,	arginfo_unarynode_setoprepresentation, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTUnaryNode, appendBetween,			arginfo_unarynode_appendbetween, ZEND_ACC_PUBLIC)
+    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
+/* {{{ class ASTBinaryNode extends ASTNode */
+/* {{{ internal handlers */
+static zend_object_handlers binarynode_handlers;
+static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC) {
+	zend_object_value retval;
+	zend_object *obj;
+	zval *property;
+
+	obj = emalloc(sizeof(zend_object));
+	zend_object_std_init(obj, ce TSRMLS_CC);
+	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
+
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "between_lhs_operator", property);
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "between_operator_rhs", property);
+
+	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handlers = &binarynode_handlers;
+	return retval;
+}
+/* }}} */
+/* {{{ proto public void ASTBinaryNode::__construct(int $type, ASTTree $tree [, mixed $lhs, mixed $rhs [, mixed $operator]]) */
+PHP_METHOD(ASTBinaryNode, __construct) {
+	zval *obj, *root;
+	zval *lhs, *operator, *rhs;
+	long type;
+
+	lhs=NULL;
+	rhs=NULL;
+	operator=NULL;
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lO|zzz",
+				&type, &root, META_CLASS(tree), &lhs, &rhs, &operator)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	//bit twiddling with pointers, yes, not readable, yes, more compact than nested if/else
+	if((!!(size_t)lhs ^ !!(size_t)rhs)) {
+		//TODO error: either both lhs and rhs, or none
+		//TODO free memory?
+		return;
+	}
+	else {
+		META_UP_PROP(binarynode, obj, "lhs", lhs);
+		META_UP_PROP(binarynode, obj, "rhs", rhs);
+		Z_ADDREF_P(lhs);
+		Z_ADDREF_P(rhs);
+	}
+
+	META_UP_PROP_L(binarynode, obj, "type", type);
+	META_UP_PROP(binarynode, obj, "root", root);
+	Z_ADDREF_P(root);
+	if(operator) {
+		META_UP_PROP(binarynode, obj, "operator", operator);
+		Z_ADDREF_P(operator);
+	}
+}
+/* }}} */
+/* {{{ proto public string ASTBinaryNode::__toString() */
+PHP_METHOD(ASTBinaryNode, __toString) {
+	zval *obj, *property;
+
+	obj = getThis();
+	RETVAL_EMPTY_STRING();
+	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("lhs")-1, 0 TSRMLS_CC);
+	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
+		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+	}
+	//TODO check root's flags and serialize between_lhs_operator if needed
+	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
+	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
+		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+	}
+	//TODO check root's flags and serialize between_operator_rhs if needed
+	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("rhs")-1, 0 TSRMLS_CC);
+	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
+		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+	}
+}
+/* }}} */
+/* {{{ proto public void ASTBinaryNode::appendBetween($child, $where)
+ * Append $child to the filling area $where */
+PHP_METHOD(ASTBinaryNode, appendBetween) {
+	zval *obj, *fill, *child;
+	long where;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl",
+				&child, &where)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	switch(where) {
+		case 1:
+			fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_lhs_operator")-1, 0 TSRMLS_CC);
+			break;
+		case 2:
+			fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
+			break;
+		default:
+			//TODO error: invalid place to append child to, eventually introduce symbolic constants for ASTBinaryNode
+			return;
+	}
+	//Z_ADDREF_P(child);
+	add_next_index_zval(fill, child);
+}
+/* }}} */
+/* {{{ proto public void ASTBinaryNode::setLHS(mixed $node) */
+PHP_METHOD(ASTBinaryNode, setLHS) {
+	zval *obj, *lhs;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&lhs)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(binarynode, obj, "lhs", lhs);
+}
+/* }}} */
+/* {{{ proto public void ASTBinaryNode::setOpRepresentation(string $representation)
+ * Set the string representation of the operator */
+PHP_METHOD(ASTBinaryNode, setOpRepresentation) {
+	zval *obj, *operator;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&operator)) {
+		WRONG_PARAM_COUNT;
+	}
+	//TODO accept only string (?)
+	obj = getThis();
+	META_UP_PROP(binarynode, obj, "operator", operator);
+}
+/* }}} */
+/* {{{ proto public void ASTBinaryNode::setRHS(mixed $node) */
+PHP_METHOD(ASTBinaryNode, setRHS) {
+	zval *obj, *rhs;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&rhs)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	META_UP_PROP(binarynode, obj, "rhs", rhs);
+}
+/* }}} */
+/* {{{ ASTBinaryNode methods */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_construct, 0, 0, 2)
+	ZEND_ARG_INFO(0, type)
+	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_tostring, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_appendbetween, 0, 0, 2)
+	ZEND_ARG_INFO(0, child)
+	ZEND_ARG_INFO(0, where)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_setlhs, 0, 0, 1)
+	ZEND_ARG_INFO(0, node)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_setoprepresentation, 0, 0, 1)
+	ZEND_ARG_INFO(0, representation)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_setrhs, 0, 0, 1)
+	ZEND_ARG_INFO(0, node)
+ZEND_END_ARG_INFO()
+
+static const function_entry php_meta_astbinarynode_functions[] = {
+    PHP_ME(ASTBinaryNode, __construct,			arginfo_binarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTBinaryNode, __toString,			arginfo_binarynode_tostring, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTBinaryNode, appendBetween,		arginfo_binarynode_appendbetween, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTBinaryNode, setLHS,				arginfo_binarynode_setlhs, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTBinaryNode, setOpRepresentation,	arginfo_binarynode_setoprepresentation, ZEND_ACC_PUBLIC)
+    PHP_ME(ASTBinaryNode, setRHS,				arginfo_binarynode_setrhs, ZEND_ACC_PUBLIC)
+    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
+/* {{{ class ASTTernaryNode extends ASTNode */
+//TODO implement the ASTTernaryNode class. There has been no need for it yet
+/* {{{ proto public void ASTTernaryNode::__construct */
+PHP_METHOD(ASTTernaryNode, __construct) {
+
+}
+/* }}} */
+/* {{{ ASTTernaryNode methods */
+static const function_entry php_meta_astternarynode_functions[] = {
+	PHP_ME(ASTTernaryNode, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
 /*
  * Local variables:
  * tab-width: 4

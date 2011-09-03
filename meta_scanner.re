@@ -9,12 +9,15 @@
 #define IS_EOL(c) *(c) == '\n' || (*(c) == '\r' && *((c)+1) != '\n')
 
 #ifdef DEBUG
-# if 0
+# if 1
 #  define DBG_SCANNER(state, c) php_printf("\t\t\tlex state %d, cursor '%c'(%d)\n", state, c, c)
 # else
 #  define DBG_SCANNER(state, c)
 # endif
 #define DBG(fmt, args...) php_printf("\t\t(pos %d)\t", YYCURSOR - scanner->src); php_printf(fmt, ## args); php_printf("\n")
+
+#define SCANNER_ZDUMP(pzv) do { php_printf("-- (%d : '%s') %p: ",__LINE__, __PRETTY_FUNCTION__, pzv); if(NULL != pzv) php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
+
 #else
 #define DBG_SCANNER(state, c)
 #define PRINT_DBG(fmt, args...)
@@ -25,7 +28,9 @@
 const unsigned int meta_scanner_maxfill = YYMAXFILL;
 
 //TODO do some profiling with this inline, see if we get any improvement that way
-TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
+//TODO create map for T_ numbers and TOKEN_IS_DISPENSABLE
+//TODO create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit)
+TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSRMLS_DC) {
     TOKEN* t;
     int errcode=0;
     long number;
@@ -43,8 +48,8 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len) {
     TOKEN_IS_DISPENSABLE(t) = 0;
     switch(major) {
         case 0:
-        case T_PLUS:
             break;
+        case T_PLUS: // TODO skip this if appropiate flags set
         case T_OUTSIDE_SCRIPTING:
         case T_OPEN_TAG:
         case T_OPEN_TAG_WITH_ECHO:
@@ -127,7 +132,6 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 #define RETURN(tok) token = tok; goto lex_end
 #endif
 
-//TODO remove lex_root:
     token = NULL;
     last_cursor = YYCURSOR;
     last_line_no = scanner->line_no;
@@ -167,9 +171,9 @@ lex_start:
     }
     if(YYCURSOR > YYLIMIT - YYMAXFILL) {
         TOKEN *outside;
-        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor);
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
         TOKEN *eoi;
-        eoi = ast_token_ctor(scanner, 0, NULL, 0);
+        eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
         TOKEN_PUSH(scanner, eoi);
         RETURN(outside);
     }
@@ -184,14 +188,14 @@ lex_start:
 do_transient_start:
     SETSTATE(IN_SCRIPTING);
     TOKEN *open_tag;
-    open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta);
+    open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta TSRMLS_CC);
     if(last_cursor == YYCURSOR - transient_delta) {
         RETURN(open_tag);
     }
     else {
         TOKEN_PUSH(scanner, open_tag);
         TOKEN* outside;
-        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2);
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2 TSRMLS_CC);
         RETURN(outside);
     }
 }
@@ -214,18 +218,18 @@ do_transient_start:
 <ST_IN_SCRIPTING>{PHP_STOP} {
     TOKEN *stop;
     SETSTATE(INITIAL);
-    stop = ast_token_ctor(scanner, T_CLOSE_TAG, last_cursor, YYCURSOR - last_cursor);
+    stop = ast_token_ctor(scanner, T_CLOSE_TAG, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
     RETURN(stop);
 }
 <ST_IN_SCRIPTING>{EOI} {
     TOKEN *eoi;
-    eoi = ast_token_ctor(scanner, 0, NULL, 0);
+    eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
     RETURN(eoi);
 }
 
 <ST_IN_SCRIPTING>{WHITESPACE}/{NON_WS} {
     TOKEN *ws;
-    ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor);
+    ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
     if(IS_EOL(YYCURSOR-1)) {
         scanner->line_no++;
     }
@@ -240,12 +244,12 @@ do_transient_start:
 /* ***** "top" tokens ***** */
 <ST_IN_SCRIPTING>{LNUM} {
     TOKEN* num;
-    num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor);
+    num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
     RETURN(num);
 }
 <ST_IN_SCRIPTING>"+" {
     TOKEN *plus;
-    plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor);
+    plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
     RETURN(plus);
 }
 <ST_IN_SCRIPTING>";" {

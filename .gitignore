@@ -37,3 +37,5 @@ gdb.txt
 stderr.txt
 _*
 .gitCOMMIT_EDITMSG
+tests/*.php
+tests/*.phps

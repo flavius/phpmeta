@@ -43,8 +43,6 @@ META_API zval* meta_scanner_token_zval(TOKEN* t) {
     return tzv;
 }
 
-
-
 META_API void meta_scanner_free(meta_scanner **scanner) {
     zval_ptr_dtor(&((*scanner)->rawsrc));
     int elems;

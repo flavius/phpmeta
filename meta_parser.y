@@ -6,19 +6,13 @@
 #include "parser_API.h"
 #include "scanner_API.h"
 #include "parser.h"
-#include "php_meta.h" //TODO remove, as far as META_ZDUMP() is not used
-
-
-//TODO use the same names for TSRM-related stuff
-#define M_TSRMLS_D TSRMLS_D
-#define M_TSRMLS_DC TSRMLS_DC
 
 #if ZTS
-#define M_TSRMLS_C yypParser->tsrm_ls
-#define M_TSRMLS_CC , M_TSRMLS_C
+#undef TSRMLS_C
+#define TSRMLS_C yypParser->tsrm_ls
 #else
-#define M_TSRMLS_C
-#define M_TSRMLS_CC
+#define TSRMLS_C
+#define TSRMLS_CC
 #endif
 
 #undef TSRMG
@@ -28,6 +22,7 @@
 #undef TSRMLS_C
 #define TSRMLS_C yypParser->tsrm_ls
 #endif
+
 
 //TODO rename it globally
 typedef TOKEN Token;
@@ -49,13 +44,11 @@ const char* meta_token_repr(int n) {
 }
 
 
-#if 1
+#if 0
 #define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
 #else
 #define DBG(fmt, args...)
 #endif
-
-//we need to rewrite emalloc and efree, as these are macros and the real functions need other parameters as well
 
 }
 %name MetaParser
@@ -65,9 +58,9 @@ const char* meta_token_repr(int n) {
 %extra_argument{ zval* tree }
 
 %token_destructor {
-    php_printf("\t\t\ttoken dtor major=%d addr=%p minor: ", TOKEN_MAJOR($$), $$);
-    META_ZDUMP(TOKEN_MINOR($$));
-    php_printf("\n");
+    //php_printf("\t\t\ttoken dtor major=%d addr=%p minor: ", TOKEN_MAJOR($$), $$);
+    //META_ZDUMP(TOKEN_MINOR($$));
+    //php_printf("\n");
     //yeah, we shouldn't hide the warning
     if(tree == tree) {}
     //TODO we should ast_token_dtor($$)
@@ -76,7 +69,7 @@ const char* meta_token_repr(int n) {
 }
 
 %parse_accept {
-    php_printf("\t\t\t\t\t ACCEPT!\n");
+    //php_printf("\t\t\t\t\t ACCEPT!\n");
 }
 %parse_failure {
     php_printf("\t\t\t\t\t FAILURE!\n");
@@ -193,97 +186,77 @@ const char* meta_token_repr(int n) {
 %type expr {zval*}
 
 start(A) ::=  processing(B) . {
-    DBG("meta_parser.y %d", __LINE__);
-    zval *t_B = B;
     /* A B */ // NEVER USED, the node is attached directly to the tree
 }
 
-processing ::= . {
-    DBG("meta_parser.y %d", __LINE__);
+processing(A) ::= . {
+    /* A B C */
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
-    DBG("meta_parser.y %d", __LINE__);
-    zval *t_B = B;
-    zval *t_C = C;
     //TODO instead of crafting nodes manually, use the tree as a factory,
     //which instantiates the right classes if the user has some specific preferences
-    zend_function *appendChild;
-    zend_hash_find(&META_CLASS(tree)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    zval* ret_t = obj_call_method_internal_ex(tree, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", C);
-    zval_ptr_dtor(&ret_t);
+    META_CALL_METHOD(tree, tree, appendchild, "z", C);
     /* A B C */
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
-    DBG("meta_parser.y %d", __LINE__);
-    TOKEN *t_B = B;
-    ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC,
-        "lzllz", TOKEN_MAJOR(B), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
-    efree(B);
+    //TODO init A as unary, set value to B, efree(B)
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
-    DBG("meta_parser.y %d", __LINE__);
-    zval *retv;
-    zend_function *function;
-    ALLOC_INIT_ZVAL(A);
-    retv = zend_read_property(META_CLASS(node), C, STRL_PAIR("end_line")-1, 0 M_TSRMLS_CC);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", NT_processing_stmt, tree, B->start_line, Z_LVAL_P(retv), TOKEN_MINOR(B));
-    zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &function);
+    META_NODE_CTOR(nodelist, A, "z", tree);
+    zval *end_line = META_PROP(nodelist, C, "end_line");
+    META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
+    META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
+    //TODO apend all children between B and C, ensuring there's at least one space
+    //TODO take tree's flags into consideration
     if(NULL != B->next) {
         TOKEN *cursor, *prev;
         cursor = B->next;
         while(NULL != cursor) {
-            retv = obj_call_method_internal_ex(A, META_CLASS(node), function, EG(scope), 1 M_TSRMLS_CC, "z", TOKEN_MINOR(cursor));
-            zval_ptr_dtor(&retv);
+            META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(cursor));
             prev = cursor;
             cursor = cursor->next;
             efree(prev);
         }
     }
-    retv = obj_call_method_internal_ex(A, META_CLASS(node), function, EG(scope), 1 M_TSRMLS_CC, "z", C);
-    zval_ptr_dtor(&retv);
+    META_CALL_METHOD(nodelist, A, appendchild, "z", C);
     efree(B);
 }
+
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . {
-    DBG("meta_parser.y %d", __LINE__);
     /* A B C D */
 }
 
-
 top_stmt_list(A) ::= top_stmt(B) . {
     zval *start_line, *end_line;
-    DBG("meta_parser.y %d", __LINE__);
-    zval *t_B = B;
 
-    start_line = zend_read_property(META_CLASS(node), B, STRL_PAIR("start_line")-1, 0 M_TSRMLS_CC);
-    end_line = zend_read_property(META_CLASS(node), B, STRL_PAIR("end_line")-1, 0 M_TSRMLS_CC);
-    ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzll", NT_top_stmt_list, tree, Z_LVAL_P(start_line), Z_LVAL_P(end_line));
-    zend_function *appendChild;
-    zend_hash_find(&META_CLASS(node)->function_table, STRL_PAIR("appendchild"), (void**) &appendChild);
-    zval *retv = obj_call_method_internal_ex(A, META_CLASS(node), appendChild, EG(scope), 1 M_TSRMLS_CC, "z", B);
-    zval_ptr_dtor(&retv);
+    start_line = META_PROP(node, B, "start_line");
+    end_line = META_PROP(node, B, "end_line");
+    META_NODE_CTOR(nodelist, A, "z", tree);
+    META_CALL_METHOD(nodelist, A, appendchild, "z", B);
+    META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
-    DBG("meta_parser.y %d", __LINE__);
     A = B;
     /* A B C */ // ADD C to B
 }
 
 top_stmt(A) ::= expr(B) . {
-    DBG("meta_parser.y %d", __LINE__);
     A = B;
 }
 
+expr(A) ::= expr(B) PLUS(C) expr(D) . {
+    META_NODE_CTOR(binarynode, A, "lzzzz", T_PLUS, tree, B, D, TOKEN_MINOR(C));
+    efree(C);
+}
+
 expr(A) ::= LNUMBER(B) . {
-    DBG("meta_parser.y %d", __LINE__);
-    TOKEN *t_B = B;
-    ALLOC_INIT_ZVAL(A);
-    A = obj_call_method_internal_ex(A, META_CLASS(node), META_CLASS(node)->constructor, EG(scope), 1 M_TSRMLS_CC, "lzllz", TOKEN_MAJOR(B), tree, B->start_line, B->end_line, TOKEN_MINOR(B));
+    META_NODE_CTOR(unarynode, A, "lzz", T_LNUMBER, tree, TOKEN_MINOR(B));
+    META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
     B->prev->next = NULL;
     B->next->prev = NULL;
     efree(B);
 }
+

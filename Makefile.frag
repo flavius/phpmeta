@@ -1,5 +1,5 @@
 #this makefile is supposed to work(not 100% sure) with out-of-srctree builds, so it
-#makes extensive use of $(builddir). However
+#makes extensive use of $(builddir). However:
 #TODO config.m4 needs more tweaking
 
 RE2C_FLAGS=--no-generation-date --case-inverted -cbdF
@@ -21,6 +21,7 @@ $(builddir)/lemon: $(srcdir)/lemon.c $(srcdir)/lempar.c
 
 internalclean:clean
 	rm -f $(builddir)/meta_scanner_defs.h $(builddir)/meta_scanner.c
-	rm -f $(builddir)/{lemon}
+	rm -f $(builddir)/lemon
 	rm -f $(builddir)/{meta_parser.c,meta_parser_defs.h}
+	rm -f $(builddir)/{gdb.txt,stderr.txt}
 

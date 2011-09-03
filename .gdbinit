@@ -2,8 +2,12 @@ set confirm off
 set breakpoint pending on
 
 set args -f my_t/test_parser.php
-break meta_parser.y:212
+break meta_parser.y:283
 ################# common places for ZE2, php 5.3.3:
+### now we have the module symbols
+#break zend_startup_modules
+#run
+#disable
 ### leaking return value:
 #break zend_execute_API.c:983
 set logging on

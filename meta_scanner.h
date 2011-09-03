@@ -49,7 +49,7 @@ typedef struct _meta_scanner {
     //sometimes the scanner looks too far ahead and
     //when it does so, it caches the previous tokens
     zend_ptr_stack *buffer;
-    unsigned int flags;//see SFLAG_ above
+    unsigned int flags;//see SFLAG_ below
     unsigned int err_no;
     //TODO add streams
 } meta_scanner;
@@ -86,13 +86,9 @@ typedef struct _meta_scanner {
 
 
 //-------- the lexer --------------
-//meta_scanner* meta_scanner_alloc(zval*, long flags);
-//void meta_scanner_free(meta_scanner **scanner);
 META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC);
 
-//META_API zval* meta_scanner_token_zval(TOKEN* t);
-//META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr);
-//return codes for meta_scan
+//status codes for meta_scan, meta_scanner.err_no
 #define ERR_NONE 0
 #define ERR_EOI 1
 #define ERR_FILLOVERFLOW 2
