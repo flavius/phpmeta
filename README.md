@@ -55,7 +55,8 @@ To be done:
   * make the scanner recognize all tokens (source: `php_scanner.re`)
   * make the parser parse any valid source code (source: `php_parser.y`)
   * introduce a non-obtrusive meta-parsing hook; this could be easily
-  done by putting `#@myhook`. When the node following after this "meta instruction"
+  done by putting `#@myhook` in the PHP source code, in front of the node you need to modify or inspect.
+  When the node following after this "meta instruction"
   is reduced, the hook is called, getting as parameter the AST node which has
   just been reduced (**A**)
     * alternative 1: the ASTTree holds a map of AST classes, if the user wishes
