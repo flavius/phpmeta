@@ -26,9 +26,11 @@ The things in black are all the nodes of this syntax tree. At the top there is
 the root of the tree, similar to a DOMDocument. It has two children, the inline
 text, and a new node holding the elements inside the PHP processing.
 
+The blue arrows show the parent-child relationship.
+
 The nodes with a yellow background could be left out, and we could still reconstruct
-the original PHP code, based on logical assumptions from the context in which these
-nodes occur.
+a valid PHP source equivalent to the original PHP code, based on logical assumptions
+from the context in which these nodes occur.
 
 All the nodes, the required ones ('+', 20, 22, 'The answer is ') and the optional
 ones ('<?php', ' ' and ';') form the *concrete syntax tree* of the source code.
