@@ -9,6 +9,36 @@ of implementing it.
 
 Meta is going to fill the gap between Reflection, runkit and the tokenizer.
 
+
+What is a syntax tree?
+----------------------
+A syntax tree is the canonical representation of a source code. The code
+is parsed according to the tokens' [associativity](http://php.net/manual/en/language.operators.precedence.php)
+and precedence, and together they make a tree. For instance, the tree of the expression
+
+    The answer is <?php echo 20+22;
+
+could look like this:
+
+![A syntax tree](http://i.imgur.com/OF6gO.png)
+
+The things in black are all the nodes of this syntax tree. At the top there is
+the root of the tree, similar to a DOMDocument. It has two children, the inline
+text, and a new node holding the elements inside the PHP processing.
+
+The nodes with a yellow background could be left out, and we could still reconstruct
+the original PHP code, based on logical assumptions from the context in which these
+nodes occur.
+
+All the nodes, the required ones ('+', 20, 22, 'The answer is ') and the optional
+ones ('<?php', ' ' and ';') form the *concrete syntax tree* of the source code.
+Only the required ones form the *abstract syntax tree* of the code. Meta is able
+to produce both, ASTs and the more verbose CSTs, depending on the flags you
+pass to it.
+
+The black boxes (ASTTree and ASTNodeList) are "containers" and they can contain
+an infinite number of children.
+
 Current status
 ==============
 
@@ -43,10 +73,13 @@ What it can be used for
 =======================
 
   * meta programming
+  * code preprocessing
   * pretty printing
-  * static code analysis
+  * static code analysis (and everything that can be done through it, QA, semi-automatic security and logical bugs detection)
 
-(each of them not by itself, but by providing the necessary infrastructure)
+Meta itself will not be able to do these things by itself, but it will provide
+the necessary infrastructure to userland scripts for specialized uses like
+the ones mentioned above.
 
 How to use it
 =============
@@ -73,25 +106,28 @@ should not include directly, but through the `.h` files mentioned above.
 `scanner.c` and `parser.c` contain the functionalities exported to the
 runtime, through `meta.c`.
 
-The internal lexer of the Zend Engine could not be used as it's bound
-to CG (and as such, `php.ini`). The Meta's scanner is aimed at scanning
-any kind of input, no matter if the host where it is run has `short_tags`
-on or not, for example.
+The ZE2's internal lexer could not be used because it is made for speed
+and minimal memory requirements. As such, it strips out information
+from the scanned code, information which meta needs to achieve its goals.
 
-The ZE's lexer could not be used also because it doesn't keep some of
-the terminal's values. `meta_scanner.re` does that if you provide
-the appropiate flags (**NOTE**: not actually done yet, but the flags
-fields are in place, both for the scanner, and the `ASTTree`).
-This way, we can make the difference between
-"echo" and "ecHo" - tools for checking the coding standard could be
-written on top of that.
+By keeping this information, tools using this extension can even detect
+coding standards violations (e.g. "echo" vs. "ecHo").
 
-Also, one main priority is to be able to analyze php6 code just by
-having the latest version of this extension, not necessarily php6
-altogether.
+Via appropiate flags though, the user will be able to tell it to minimize
+memory usage by skipping unneeded tokens (e.g. you don't care about whitespaces
+or capitalization if you are analyzing a code for security holes).
 
-As php 5.2 is not supported any longer, this extension is supposed to
-work on 5.3+.
+Also:
+
+  * ZE2 is bound to the php.ini settings (`CG`), meta will be able to
+parse any code (again, you can fine-grain the process via appropiate flags),
+regardless of the local settings of the system.
+  * one main priority is to be able to analyze PHP code compatible
+with different versions of PHP, regardless of the version running the
+extension itself.
+
+Meta is supposed to work as a PHP 5.3+ extension and 
+interpret PHP 5.3+ code.
 
 Roadmap
 =======
