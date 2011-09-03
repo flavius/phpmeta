@@ -1,7 +1,8 @@
-ASTTree:
+* ASTTree:
     1. register hooks
     2. a. let the user hook his own classnames
        b. make ASTTree::newNode a factory
        c. use this factory in the grammar
 
-make use of ASTTree flags in the grammar
+* make use of ASTTree flags in the grammar
+* write the language specification of PHP in EBNF
