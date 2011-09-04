@@ -1,7 +1,7 @@
 dnl TODO remove these
 dnl CFLAGS="$CFLAGS -Wall -Wextra -Werror -Wno-unused -g3 -DDEBUG"
 dnl CFLAGS="$CFLAGS -Wall -Wextra -Wshadow -Wpointer-arith -Wstrict-prototypes -Wno-unused-parameter -g3"
-CFLAGS="$CFLAGS -Wall -g3"
+CFLAGS="$CFLAGS -Wall -g3 -Wdeclaration-after-statement"
 PHP_ARG_ENABLE(meta,
 	[Whether to enable the "meta" extension],
 	[  --enable-meta Enable "meta" extension support])
