@@ -1,0 +1,10 @@
+Meta is still a prototype. Known bugs can be mostly derived from the pending
+TODOs, which can find either inline, in the code, or in the file TODO.txt.
+
+In the end, it will be able to parse any valid PHP code and return the
+associated AST (or CST), perhaps it will even provide a small language
+similar to XPath (nicknamed TreePath) to find nodes inside a tree by
+their attributes.
+
+For further information read the README. The tests are also useful to get an
+idea of what can already be done.
