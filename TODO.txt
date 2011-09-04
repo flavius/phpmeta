@@ -6,3 +6,4 @@
 
 * make use of ASTTree flags in the grammar
 * write the language specification of PHP in EBNF
+* do proper error handling
