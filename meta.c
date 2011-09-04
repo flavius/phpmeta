@@ -31,7 +31,7 @@
 
 PHP_FUNCTION(meta_test) {
 }
-
+/* {{{ meta functions */
 static function_entry php_meta_functions[] = {
     PHP_FE(meta_test, NULL)
     PHP_FE(meta_scanner_init, NULL)
@@ -39,7 +39,8 @@ static function_entry php_meta_functions[] = {
     PHP_FE(meta_scanner_token_name, NULL)
     ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
-
+/* }}} */
+/* {{{ meta MINIT */
 PHP_MINIT_FUNCTION(meta) {
     int status = SUCCESS;
     status = meta_parser_init_function(INIT_FUNC_ARGS_PASSTHRU);
@@ -54,7 +55,8 @@ PHP_MINIT_FUNCTION(meta) {
     /* end scanner "initialization" (not yet complete) */
     return SUCCESS;
 }
-
+/* }}} */
+/* {{{ meta_module_entry */
 zend_module_entry meta_module_entry = {
     STANDARD_MODULE_HEADER,
     PHP_META_EXTNAME,
@@ -67,22 +69,85 @@ zend_module_entry meta_module_entry = {
     PHP_META_EXTVER,
     STANDARD_MODULE_PROPERTIES
 };
+/* }}} */
+/* {{{ zval** get_params_ex(const char *fmt, va_list *argp) */
+static zval** get_params_ex(const char *fmt, va_list *argp) {
+    zval** params;
+    size_t len;
+    size_t i, j;
 
-#ifdef COMPILE_DL_META
-ZEND_GET_MODULE(meta)
-#endif
+    char *s;
+    long l,r;
+    double d;
+    zval *z;
+    zend_bool b;
 
 
-/*TODO move these into the parser*/
-void *meta_alloc(size_t size) {
-    return emalloc(size);
+    len = strlen(fmt);
+    params = safe_emalloc(len, sizeof(zval*), 0);
+    if(NULL == params) {
+        return NULL;
+    }
+
+    for(i=0; i < len; i++) {
+        switch(fmt[i]) {
+            case 's':
+                MAKE_STD_ZVAL(params[i]);
+                s = va_arg(*argp, char*);
+                ZVAL_STRING(params[i], s, 1);
+                break;
+            case 'l':
+                MAKE_STD_ZVAL(params[i]);
+                l = va_arg(*argp, long);
+                ZVAL_LONG(params[i], l);
+                break;
+            case 'd':
+                MAKE_STD_ZVAL(params[i]);
+                d = va_arg(*argp, double);
+                ZVAL_DOUBLE(params[i], d);
+                break;
+            case 'b':
+                MAKE_STD_ZVAL(params[i]);
+                b = va_arg(*argp, int);
+                ZVAL_BOOL(params[i], b);
+                break;
+            case 'r':
+                MAKE_STD_ZVAL(params[i]);
+                r = va_arg(*argp, long);
+                ZVAL_RESOURCE(params[i], r);
+                break;
+            case 'z':
+                z = va_arg(*argp, zval*);
+                /*TODO if z is NULL, turn it into a IS_NULL*/
+                params[i] = z;
+                break;
+            default:
+                /*TODO output error "wrong fmt specifier"*/
+                for(j = 0; j < i; j++) {
+                    zval_ptr_dtor(&params[i]);
+                }
+                efree(params);
+                return NULL;
+        }
+    }
+    return params;
+
 }
-
-void meta_free(void* ptr) {
-    efree(ptr);
-}
-
-zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
+/* }}} */
+/* not used, TODO keep it around, maybe sometime we'll need it
+static zval** get_params(const char *fmt, ...) {
+    va_list argp;
+    zval **ret;
+    va_start(argp, fmt);
+    ret = get_params_ex(fmt, &argp);
+    va_end(argp);
+    return ret;
+} */
+/* {{{ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope, zend_bool native_null TSRMLS_DC, char* fmt, ...)
+ * call method func of the object obj of type ce from the specified scope and return the value returned by the calee.
+ * if native_null is true, and the method returns a IS_NULL zval, then free that zval and return a NULL pointer
+ * valid format specifiers are [sldbrz] for string, long, double, boolean, resource, zval */
+META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
        zend_bool native_null TSRMLS_DC, char* fmt, ...) {
     zval **params;
     int argc;
@@ -171,76 +236,25 @@ clean_params:
     }
     return retval_ptr;
 }
-
-static zval** get_params_ex(const char *fmt, va_list *argp) {
-    zval** params;
-    size_t len;
-    size_t i, j;
-
-    char *s;
-    long l,r;
-    double d;
-    zval *z;
-    zend_bool b;
-
-
-    len = strlen(fmt);
-    params = safe_emalloc(len, sizeof(zval*), 0);
-    if(NULL == params) {
-        return NULL;
-    }
-
-    for(i=0; i < len; i++) {
-        switch(fmt[i]) {
-            case 's':
-                MAKE_STD_ZVAL(params[i]);
-                s = va_arg(*argp, char*);
-                ZVAL_STRING(params[i], s, 1);
-                break;
-            case 'l':
-                MAKE_STD_ZVAL(params[i]);
-                l = va_arg(*argp, long);
-                ZVAL_LONG(params[i], l);
-                break;
-            case 'd':
-                MAKE_STD_ZVAL(params[i]);
-                d = va_arg(*argp, double);
-                ZVAL_DOUBLE(params[i], d);
-                break;
-            case 'b':
-                MAKE_STD_ZVAL(params[i]);
-                b = va_arg(*argp, int);
-                ZVAL_BOOL(params[i], b);
-                break;
-            case 'r':
-                MAKE_STD_ZVAL(params[i]);
-                r = va_arg(*argp, long);
-                ZVAL_RESOURCE(params[i], r);
-                break;
-            case 'z':
-                z = va_arg(*argp, zval*);
-                /*TODO if z is NULL, turn it into a IS_NULL*/
-                params[i] = z;
-                break;
-            default:
-                /*TODO output error "wrong fmt specifier"*/
-                for(j = 0; j < i; j++) {
-                    zval_ptr_dtor(&params[i]);
-                }
-                efree(params);
-                return NULL;
-        }
-    }
-    return params;
-
+/* }}} */
+/*TODO move these into the parser*/
+void *meta_alloc(size_t size) {
+    return emalloc(size);
 }
 
-/* not used, TODO keep it around, maybe sometime we'll need it
-static zval** get_params(const char *fmt, ...) {
-    va_list argp;
-    zval **ret;
-    va_start(argp, fmt);
-    ret = get_params_ex(fmt, &argp);
-    va_end(argp);
-    return ret;
-} */
+void meta_free(void* ptr) {
+    efree(ptr);
+}
+
+#ifdef COMPILE_DL_META
+ZEND_GET_MODULE(meta)
+#endif
+
+/*
+ * Local variables:
+ * tab-width: 4
+ * c-basic-offset: 4
+ * indent-tabs-mode: t
+ * End:
+ * vim600: noet sw=4 ts=4 fdm=marker
+ */

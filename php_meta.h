@@ -7,7 +7,7 @@
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
    | available through the world-wide-web at the following url:           |
-   | http://*www.php.net/license/3_01.txt                                 |
+   | http://www.php.net/license/3_01.txt                                 |
    | If you did not receive a copy of the PHP license and are unable to   |
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
@@ -40,11 +40,12 @@ void meta_free(void* ptr);
 zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
         zend_bool native_null
         TSRMLS_DC, char* fmt, ...);
+
 /**
  * Unlike zend_call_method(), this function allows you to call a method with C data types
  * It makes calling objects' methods more enjoyable from the C perspective
  */
-static zval** get_params_ex(const char *fmt, va_list *argp);
+//static zval** get_params_ex(const char *fmt, va_list *argp);
 /* static zval** get_params(const char *fmt, ...); */
 
 /*TODO my debug, conditional define in 0.0.1*/
