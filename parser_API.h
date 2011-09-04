@@ -18,9 +18,10 @@
 
 #ifndef PARSER_API_H
 #define PARSER_API_H
+/* never include the following directly, always use THIS file */
 #include "meta_parser.h"
+/* TODO never include meta_parser_defs.h directly, do it through this file */
 
-//TODO remove these two, as we have the more generalized obj_call_method_internal_ex()
-//META_API zval* meta_tree_ctor(INTERNAL_FUNCTION_PARAMETERS);
-//META_API void meta_tree_dtor(zval **tree);
-#endif // PARSER_API_H
+/* TODO move here any internal functions specific to the parser, and not somehow exported to PHP the runtime (but to other extensions) */
+
+#endif /* PARSER_API_H */

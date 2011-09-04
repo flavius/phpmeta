@@ -45,15 +45,15 @@
 
 const unsigned int meta_scanner_maxfill = YYMAXFILL;
 
-//TODO do some profiling with this inline, see if we get any improvement that way
-//TODO create map for T_ numbers and TOKEN_IS_DISPENSABLE
-//TODO create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit)
-TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSRMLS_DC) {
+/* TODO:
+ - create map for T_ numbers and TOKEN_IS_DISPENSABLE
+ - create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit) */
+META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSRMLS_DC) {
     TOKEN* t;
     int errcode=0;
     long number;
 
-    //TODO take SFLAG_SKIP_REDUNDANT into account
+    /* TODO take SFLAG_SIMPLE_KEYWORDS into account */
     t = emalloc(sizeof(TOKEN));
     TOKEN_MAJOR(t) = major;
     TOKEN_MINOR(t) = NULL;
@@ -67,7 +67,7 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSR
     switch(major) {
         case 0:
             break;
-        case T_PLUS: // TODO skip this if appropiate flags set
+        case T_PLUS:
         case T_OUTSIDE_SCRIPTING:
         case T_OPEN_TAG:
         case T_OPEN_TAG_WITH_ECHO:
@@ -88,9 +88,9 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSR
                 ZVAL_LONG(TOKEN_MINOR(t), number);
                 if(ERANGE == errcode) {
                     t->dirty = 1;
-                    //TODO remove me
+                    /* TODO remove me */
                     perror(NULL);
-                    //TODO do we want the original input as string, or INT_MAX as now?
+                    /* TODO do we want the original input as string, or INT_MAX as now? */
                 }
             }
             else {
@@ -116,18 +116,18 @@ TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSR
  * - TOKEN* with major > 0 for tokens
  */
 META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
-    //where the cursor was positioned the last time, before calling this function
+    /* where the cursor was positioned the last time, before calling this function */
     YYCTYPE* last_cursor;
-    //the return value
+    /* the return value */
     TOKEN* token;
 
-    //enables some rules to share code
+    /* enables some rules to share code */
     int transient_delta;
     int transient_major;
-    //if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor;
+    /* if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor; */
     long last_line_no;
 
-//interface macros
+/* interface macros */
 #define YYCURSOR scanner->cursor
 #define YYLIMIT scanner->limit
 #define YYMARKER scanner->marker
@@ -137,9 +137,9 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 #define YYGETCONDITION() scanner->state
 #define YYSETCONDITION(cond) scanner->state = cond
 
-//enter a new state
+/* enter a new state */
 #define SETSTATE(st) YYSETCONDITION(ST_NAME(st))
-//jumping around 
+/* jumping around  */
 #define yymore() goto lex_start
 #define yyless() YYCURSOR--; goto lex_start
 
@@ -178,19 +178,15 @@ PHP_START_EX ("<?="|"<?"|"<%="|"<%")
 PHP_STOP ("?>"|"%>")
 */
 
-//TODO new macro to reduce redundant code - TOKEN *declaration + ast_token_ctor + RETURN(declaration)
-
 lex_start:
 /*!re2c
 <ST_INITIAL>{ANY_CHAR} {
-    //TODO detect EOL, increment scanner->line_no
     if(IS_EOL(YYCURSOR)) {
         scanner->line_no++;
     }
     if(YYCURSOR > YYLIMIT - YYMAXFILL) {
-        TOKEN *outside;
+        TOKEN *outside, *eoi;
         outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-        TOKEN *eoi;
         eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
         TOKEN_PUSH(scanner, eoi);
         RETURN(outside);
@@ -201,18 +197,18 @@ lex_start:
 }
 
 <ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
+    TOKEN *open_tag;
     transient_delta = 5;
     transient_major = T_OPEN_TAG;
 do_transient_start:
     SETSTATE(IN_SCRIPTING);
-    TOKEN *open_tag;
     open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta TSRMLS_CC);
     if(last_cursor == YYCURSOR - transient_delta) {
         RETURN(open_tag);
     }
     else {
-        TOKEN_PUSH(scanner, open_tag);
         TOKEN* outside;
+        TOKEN_PUSH(scanner, open_tag);
         outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2 TSRMLS_CC);
         RETURN(outside);
     }
@@ -271,7 +267,7 @@ do_transient_start:
     RETURN(plus);
 }
 <ST_IN_SCRIPTING>";" {
-    //TODO
+    /* TODO */
 }
 /*
 
@@ -280,7 +276,7 @@ these could be merged
 <ST_IN_SCRIPTING>{NEWLINE}
 
 TODO states:
-ST_BACKQUOTE ST_DOUBLE_QUOTES ST_END_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET ST_LOOKING_FOR_PROPERTY ST_LOOKING_FOR_VARNAME ST_NOWDOC
+ST_BACKQUOTE ST_DOUBLE_QUOTES ST_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET ST_LOOKING_FOR_PROPERTY ST_LOOKING_FOR_VARNAME
 */
 
 */

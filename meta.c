@@ -46,12 +46,12 @@ PHP_MINIT_FUNCTION(meta) {
     if(FAILURE == status) {
         return FAILURE;
     }
-    //TODO move the following scanner initialization into it's own function and call that instead
+    /* TODO move the following scanner initialization into it's own function and call that instead */
     meta_scanner_descriptor = zend_register_list_destructors_ex(
             php_meta_scanner_dtor, NULL,
             PHP_META_SCANNER_DESCRIPTOR_RES_NAME, module_number);
     zend_register_long_constant("META_SFLAG_SHORT_OPEN_TAG", sizeof("META_SFLAG_SHORT_OPEN_TAG"), SFLAG_SHORT_OPEN_TAG, CONST_CS|CONST_PERSISTENT, module_number TSRMLS_CC);
-    //end scanner "initialization" (not yet complete)
+    /* end scanner "initialization" (not yet complete) */
     return SUCCESS;
 }
 
@@ -73,7 +73,7 @@ ZEND_GET_MODULE(meta)
 #endif
 
 
-//TODO move these into the parser
+/*TODO move these into the parser*/
 void *meta_alloc(size_t size) {
     return emalloc(size);
 }
@@ -84,17 +84,18 @@ void meta_free(void* ptr) {
 
 zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
        zend_bool native_null TSRMLS_DC, char* fmt, ...) {
-
     zval **params;
-    zend_fcall_info fci;
     int argc;
+    zval *retval_ptr;
+    zend_fcall_info fci;
+    zend_fcall_info_cache fcc;
 
-    //TODO strlen() is called in get_params_ex() too, fix it
+    /*TODO strlen() is called in get_params_ex() too, fix it*/
     if(NULL != fmt) {
-        argc = strlen(fmt);
         va_list argv;
         va_list temp_argv;
 
+        argc = strlen(fmt);
         va_start(argv, fmt);
         va_copy(temp_argv, argv);
         params = get_params_ex(fmt, &temp_argv);
@@ -106,7 +107,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
         params = NULL;
     }
 
-    zval *retval_ptr = NULL;
+    retval_ptr = NULL;
 
     fci.size = sizeof(fci);
     fci.function_table = EG(function_table);
@@ -118,31 +119,30 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
     fci.params = &params;
     fci.no_separation = 1;
 
-    zend_fcall_info_cache fcc;
     fcc.initialized = 1;
     fcc.function_handler = func;
     fcc.object_ptr = obj;
     fcc.calling_scope = calling_scope;
     fcc.called_scope = ce;
 
-    //if we want the object, and the object is not an object yet, we init it
+    /*if we want the object, and the object is not an object yet, we init it*/
     if(func == ce->constructor) {
-        //TODO check obj's refcount, it has to be 1
+        /*TODO check obj's refcount, it has to be 1*/
         if(IS_NULL == Z_TYPE_P(obj)) {
             object_init_ex(obj, ce);
         }
         else {
-            //TODO error: you've requested the object, but obj is not properly initialized
+            /*TODO error: you've requested the object, but obj is not properly initialized*/
             php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
             native_null = 1;
             goto clean_params;
         }
     }
 
-    //TODO create a fcc/keep it around (in extension per-thread globals?)
+    /*TODO create a fcc/keep it around (in extension per-thread globals?)*/
 
     if(FAILURE == zend_call_function(&fci, &fcc TSRMLS_CC)) {
-        //TODO proper error reporting
+        /*TODO proper error reporting*/
         php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
         if(NULL != retval_ptr) {
             zval_ptr_dtor(&retval_ptr);
@@ -166,21 +166,16 @@ clean_params:
             retval_ptr = NULL;
         }
         else {
-            //TODO internal error: the caller (also C code) expects a native NULL ptr, but the method we've called returns something else than a IS_NULL
+            /*TODO internal error: the caller (also C code) expects a native NULL ptr, but the method we've called returns something else than a IS_NULL*/
         }
     }
     return retval_ptr;
 }
 
-zval** get_params_ex(const char *fmt, va_list *argp) {
+static zval** get_params_ex(const char *fmt, va_list *argp) {
     zval** params;
     size_t len;
-
-    len = strlen(fmt);
-    params = safe_emalloc(len, sizeof(zval*), 0);
-    if(NULL == params) {
-        return NULL;
-    }
+    size_t i, j;
 
     char *s;
     long l,r;
@@ -188,7 +183,13 @@ zval** get_params_ex(const char *fmt, va_list *argp) {
     zval *z;
     zend_bool b;
 
-    size_t i, j;
+
+    len = strlen(fmt);
+    params = safe_emalloc(len, sizeof(zval*), 0);
+    if(NULL == params) {
+        return NULL;
+    }
+
     for(i=0; i < len; i++) {
         switch(fmt[i]) {
             case 's':
@@ -218,11 +219,11 @@ zval** get_params_ex(const char *fmt, va_list *argp) {
                 break;
             case 'z':
                 z = va_arg(*argp, zval*);
-                //TODO if z is NULL, turn it into a IS_NULL
+                /*TODO if z is NULL, turn it into a IS_NULL*/
                 params[i] = z;
                 break;
             default:
-                //TODO output error "wrong fmt specifier"
+                /*TODO output error "wrong fmt specifier"*/
                 for(j = 0; j < i; j++) {
                     zval_ptr_dtor(&params[i]);
                 }
@@ -234,11 +235,12 @@ zval** get_params_ex(const char *fmt, va_list *argp) {
 
 }
 
-zval** get_params(const char *fmt, ...) {
+/* not used, TODO keep it around, maybe sometime we'll need it
+static zval** get_params(const char *fmt, ...) {
     va_list argp;
+    zval **ret;
     va_start(argp, fmt);
-    zval** ret = get_params_ex(fmt, &argp);
+    ret = get_params_ex(fmt, &argp);
     va_end(argp);
     return ret;
-}
-
+} */

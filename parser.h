@@ -22,43 +22,59 @@
 #include <php.h>
 
 
-//TODO move the following into php_meta.h?
+/* TODO move the following to parser_API.h? */
 #define META_CLASS(cls) php_meta_ast ## cls ## _ce
+
+/* convenience macros */
 #define META_UP_PROP(class, obj, prop, value) zend_update_property(META_CLASS(class), obj, prop, sizeof(prop)-1, value TSRMLS_CC)
 #define META_UP_PROP_L(class, obj, prop, value) zend_update_property_long(META_CLASS(class), obj, prop, sizeof(prop)-1, value TSRMLS_CC)
+/* it is designed to work with statically allocated strings ONLY */
 #define STRL_PAIR(str) str, sizeof(str)
 
-//--- the following stay here
+/**
+ * the initialization function, called by MINIT
+ */
 int meta_parser_init_function(INIT_FUNC_ARGS);
 
-//-- ASTNode, abstract class
+/**
+ * ASTNode, abstract class
+ */
 zend_class_entry *php_meta_astnode_ce;
 #define PHP_META_ASTNODE_CE_NAME "ASTNode"
 
-//-- ASTNodeList, only contains a list of isomorphic children
+/**
+ * ASTNodeList, a list of child nodes
+ */
 zend_class_entry *php_meta_astnodelist_ce;
 #define PHP_META_ASTNODELIST_CE_NAME "ASTNodeList"
 
-//-- ASTTree is basically a ASTNodeList, with some extra features
+/**
+ * ASTTree is basically a ASTNodeList, with some extra features
+ */
 zend_class_entry *php_meta_asttree_ce;
 #define PHP_META_ASTTREE_CE_NAME "ASTTree"
 
-//-- ASTUnaryNode
+/**
+ * ASTUnaryNode, it has only one operand, and optionally an operator
+ */
 zend_class_entry *php_meta_astunarynode_ce;
 #define PHP_META_ASTUNARYNODE_CE_NAME "ASTUnaryNode"
 
-//-- ASTBinaryNode
+/**
+ * ASTBinaryNode, it has an operator, an LHS, and a RHS
+ */
 zend_class_entry *php_meta_astbinarynode_ce;
 #define PHP_META_ASTBINARYNODE_CE_NAME "ASTBinaryNode"
 
-//-- ASTTernaryNode
+/**
+ * Not yet really implemented, but it will be useful for the ?: operator
+ */
 zend_class_entry *php_meta_astternarynode_ce;
 #define PHP_META_ASTTERNARYNODE_CE_NAME "ASTTernaryNode"
 
 
 /******** internal macros, functions and variables, only for parser.c */
 #ifdef _INTERNAL
-//internal macros, make coding more enjoyable
 static const function_entry php_meta_astnode_functions[];
 static const function_entry php_meta_astnodelist_functions[];
 static const function_entry php_meta_asttree_functions[];
@@ -78,6 +94,7 @@ static zend_object_value create_object_unarynode(zend_class_entry* TSRMLS_DC);
 static zend_object_handlers binarynode_handlers;
 static zend_object_value create_object_binarynode(zend_class_entry* TSRMLS_DC);
 
+/* internal macros, make coding more enjoyable */
 #define META_PROP_NULL(class, name, access) do { if(FAILURE == zend_declare_property_null( \
             META_CLASS(class), name, sizeof(name)-1, ZEND_ACC_ ## access TSRMLS_CC)) { \
             return FAILURE; \
@@ -107,4 +124,4 @@ static zend_object_value create_object_binarynode(zend_class_entry* TSRMLS_DC);
 
 #endif
 
-#endif // PARSER_H
+#endif /* PARSER_H */

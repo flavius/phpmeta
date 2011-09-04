@@ -42,17 +42,17 @@
 #endif
 
 
-//TODO rename it globally
+/*TODO rename it globally*/
 typedef TOKEN Token;
 
 #ifndef NDEBUG
-//TODO remove
+/*TODO remove*/
 #include <assert.h>
 #endif
 
 #include "meta_parser.h"
 
-//TODO maybe move it to the scanner?
+/*TODO maybe move it to the scanner?*/
 static const char *const yyTokenName[];
 const char* meta_token_repr(int n) {
     if(n > T_INTERNAL_SKIP) {
@@ -76,18 +76,12 @@ const char* meta_token_repr(int n) {
 %extra_argument{ zval* tree }
 
 %token_destructor {
-    //php_printf("\t\t\ttoken dtor major=%d addr=%p minor: ", TOKEN_MAJOR($$), $$);
-    //META_ZDUMP(TOKEN_MINOR($$));
-    //php_printf("\n");
-    //yeah, we shouldn't hide the warning
+    /* yeah, we shouldn't hide the warning */
     if(tree == tree) {}
-    //TODO we should ast_token_dtor($$)
-    //zval_ptr_dtor(&TOKEN_MINOR($$));
-    //efree($$); $$ = NULL;
 }
 
 %parse_accept {
-    //php_printf("\t\t\t\t\t ACCEPT!\n");
+    /* php_printf("\t\t\t\t\t ACCEPT!\n"); */
 }
 %parse_failure {
     php_printf("\t\t\t\t\t FAILURE!\n");
@@ -192,9 +186,9 @@ const char* meta_token_repr(int n) {
 %left LBRACKET RBRACKET LPAREN RPAREN LCURLY RCURLY.
 %nonassoc SEMICOLON.
 
-// dummy tokens
+/* dummy tokens*/
 %nonassoc OUTSIDE_SCRIPTING.
-// MUST be last, reserved, TODO: not used yet
+/* MUST be last, reserved, TODO: not used yet*/
 %nonassoc INTERNAL_SKIP.
 
 %type processing {zval*}
@@ -204,7 +198,7 @@ const char* meta_token_repr(int n) {
 %type expr {zval*}
 
 start(A) ::=  processing(B) . {
-    /* A B */ // NEVER USED, the node is attached directly to the tree
+    /* A B */
 }
 
 processing(A) ::= . {
@@ -212,23 +206,24 @@ processing(A) ::= . {
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
-    //TODO instead of crafting nodes manually, use the tree as a factory,
-    //which instantiates the right classes if the user has some specific preferences
+    /*TODO instead of crafting nodes manually, use the tree as a factory,
+    which instantiates the right classes if the user has some specific preferences*/
     META_CALL_METHOD(tree, tree, appendchild, "z", C);
     /* A B C */
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
-    //TODO init A as unary, set value to B, efree(B)
+    /*TODO init A as unary, set value to B, efree(B)*/
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
+    zval *end_line;
     META_NODE_CTOR(nodelist, A, "z", tree);
-    zval *end_line = META_PROP(nodelist, C, "end_line");
+    end_line = META_PROP(nodelist, C, "end_line");
     META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
     META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
-    //TODO apend all children between B and C, ensuring there's at least one space
-    //TODO take tree's flags into consideration
+    /*TODO apend all children between B and C, ensuring there's at least one space*/
+    /*TODO take tree's flags into consideration*/
     if(NULL != B->next) {
         TOKEN *cursor, *prev;
         cursor = B->next;
@@ -258,7 +253,7 @@ top_stmt_list(A) ::= top_stmt(B) . {
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
     A = B;
-    /* A B C */ // ADD C to B
+    /* A B C */
 }
 
 top_stmt(A) ::= expr(B) . {

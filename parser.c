@@ -20,7 +20,7 @@
 #include <zend_interfaces.h>
 #include <php.h>
 #include <standard/php_string.h>
-#include "meta_parser.h" // for T_ terminal definitions
+#include "meta_parser.h" /* for T_ terminal definitions */
 #include "meta_scanner.h"
 #include "scanner_API.h"
 #define _INTERNAL
@@ -31,7 +31,6 @@
 int meta_parser_init_function(INIT_FUNC_ARGS) {
     zend_class_entry ce;
 
-    //-- ASTNode
     INIT_CLASS_ENTRY(ce, PHP_META_ASTNODE_CE_NAME, php_meta_astnode_functions);
     META_CLASS(node) = zend_register_internal_class(&ce TSRMLS_CC);
 	META_CLASS(node)->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
@@ -42,7 +41,6 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_ZERO(node, "start_line", PROTECTED);
 	META_PROP_ZERO(node, "end_line", PROTECTED);
 
-	//-- ASTNodeList
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODELIST_CE_NAME, php_meta_astnodelist_functions);
 	META_CLASS(nodelist) = zend_register_internal_class(&ce TSRMLS_CC);
 	META_PROP_NULL(nodelist, "root", PROTECTED);
@@ -54,7 +52,6 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	memcpy(&nodelist_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(nodelist)->create_object = create_object_nodelist;
 
-	//-- ASTTree
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
 	META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(nodelist), PHP_META_ASTNODELIST_CE_NAME TSRMLS_CC);
 	META_PROP_ZERO(tree, "source", PROTECTED);
@@ -62,17 +59,14 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	memcpy(&tree_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(tree)->create_object = create_object_tree;
 
-	//-- ASTUnaryNode
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTUNARYNODE_CE_NAME, php_meta_astunarynode_functions);
 	META_CLASS(unarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
 	META_PROP_NULL(unarynode, "operator", PROTECTED);
-	// fill nodes between "children[0]" and "operand"
 	META_PROP_NULL(unarynode, "fill", PROTECTED);
 	META_PROP_NULL(unarynode, "operand", PROTECTED);
 	memcpy(&unarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(unarynode)->create_object = create_object_unarynode;
 
-	//-- ASTBinaryNode
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTBINARYNODE_CE_NAME, php_meta_astbinarynode_functions);
 	META_CLASS(binarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
 	META_PROP_NULL(binarynode, "lhs", PROTECTED);
@@ -83,20 +77,20 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	memcpy(&binarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(binarynode)->create_object = create_object_binarynode;
 
-	//-- ASTTernaryNode
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTTERNARYNODE_CE_NAME, php_meta_astternarynode_functions);
 	META_CLASS(ternarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
 	META_PROP_NULL(ternarynode, "condition", PROTECTED);
 	META_PROP_NULL(ternarynode, "true", PROTECTED);
 	META_PROP_NULL(ternarynode, "false", PROTECTED);
 
-    //TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it)
-	//TODO register symbolic constants for flags
+    /* TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it) */
+	/* TODO register symbolic constants for flags */
 
     return SUCCESS;
 }
 /* }}} */
-/* {{{ abstract class ASTNode */
+/* {{{ abstract class ASTNode
+ * Base class for all nodes in the tree, except ASTNodeList (ans ASTTree) */
 /* {{{ proto public void ASTNode::setLines(int $start, int $end)
  * Set the lines across this node spreads out */
 PHP_METHOD(ASTNode, setLines) {
@@ -125,16 +119,16 @@ PHP_METHOD(ASTNode, setIndex) {
 	obj = getThis();
 	parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(IS_NULL == Z_TYPE_P(parent)) {
-		//TODO error "cannot set index without a parent", return
+		/* TODO error "cannot set index without a parent", return */
 	}
 	else {
-		//check if index is valid, call parent perhaps?
+		/* check if index is valid, call parent perhaps? */
 	}
 	META_UP_PROP_L(node, obj, "index", index);
 }
 /* }}} */
 /* {{{ proto public void ASTNode::setParent(mixed $parent)
- * Set the parent, an ASTNode or ASTNodeList (or subclasses thereof) */
+ * Set the parent, an ASTNode or ASTNodeList */
 PHP_METHOD(ASTNode, setParent) {
 	zval *obj, *parent, *old_parent;
 
@@ -143,13 +137,13 @@ PHP_METHOD(ASTNode, setParent) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
-	//TODO check class of parent
+	/* TODO check class of parent, or could this be done by the engine via arginfo? */
 	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(old_parent != parent) {
 		if(IS_NULL != Z_TYPE_P(old_parent)) {
-			//TODO detach from old parent, if different
+			/* TODO detach from old parent, if different */
 		}
-		//TODO notify the parent?
+		/* TODO notify the parent? */
 		META_UP_PROP(node, obj, "parent", parent);
 		Z_ADDREF_P(parent);
 	}
@@ -157,7 +151,6 @@ PHP_METHOD(ASTNode, setParent) {
 /* }}} */
 /* {{{ ASTNode methods
  */
-
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setlines, 0, 0, 2)
 	ZEND_ARG_INFO(0, start)
 	ZEND_ARG_INFO(0, end)
@@ -165,7 +158,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setindex, 0, 0, 1)
 	ZEND_ARG_INFO(0, index)
 ZEND_END_ARG_INFO()
-//TODO how to specify a list of allowed classes? ASTNodeList and ASTNode in this case
+/* TODO how to specify a list of allowed classes? ASTNodeList and ASTNode in this case */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
 	ZEND_ARG_OBJ_INFO(0, parent, ASTNodeList, 0)
 ZEND_END_ARG_INFO()
@@ -309,8 +302,8 @@ static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
 }
 /* }}} */
 /* {{{ proto public void ASTTree::__construct(int $flags [,mixed $source])
- * TODO: it could be useful to set root = getThis(), so we can use the nodelist' find() method (when/if it will be implemented)
- */
+ * Construct the root of the tree */
+/* TODO: it could be useful to set root = getThis(), so we can use the nodelist' find() method (when/if it will be implemented) */
 PHP_METHOD(ASTTree, __construct) {
 	zval *obj;
 	long flags;
@@ -321,7 +314,7 @@ PHP_METHOD(ASTTree, __construct) {
 				&flags, &source)) {
 		WRONG_PARAM_COUNT;
 	}
-	//TODO: if source not string or file, then fail
+	/* TODO: if source not string or stream, then fail */
 	obj = getThis();
 	META_UP_PROP_L(tree, obj, "flags", flags);
 	if(source) {
@@ -331,13 +324,11 @@ PHP_METHOD(ASTTree, __construct) {
 }
 /* }}} */
 /* {{{ proto public string ASTTree::__toString()
- * Return the string representation of the entire tree, which is valid PHP code */
-    //TODO serialize the tree to valid PHP code, according to some flags of the tree
-    //TODO introduce flags
-    //in practice, we would iterate children, and let each one serialize itself, while gradually concatenating the result
-	//use concat_function() from zend_operators.c
+ * Return the string representation of the entire tree, which is valid PHP code
+ * For now, it just inherits ASTNodeList, but what about encodings, BOM and the like? */
 /* }}} */
 /* {{{ proto public void ASTTree::setFlags(int $flags) */
+/* TODO: drop this? */
 PHP_METHOD(ASTTree, setFlags) {
 	zval *obj;
 	long flags;
@@ -384,18 +375,18 @@ PHP_METHOD(ASTTree, parse) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
+	source = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("source")-1, 0 TSRMLS_CC);
+	/* TODO source can be IS_NULL, check it first, fail if necessary */
 	if(!flags) {
 		flags = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("flags")-1, 0 TSRMLS_CC);
 	}
-	source = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("source")-1, 0 TSRMLS_CC);
-	//TODO source can be IS_NULL, check it first, fail if necessary
 
 	scanner = meta_scanner_alloc(source, Z_LVAL_P(flags));
 	parser = MetaParserAlloc(meta_alloc);
 
 	do {
 		token = meta_scan(scanner TSRMLS_CC);
-		//TODO check scanner->err_no
+		/* TODO check scanner->err_no */
 		major = TOKEN_MAJOR(token);
         if(NULL == prev_token) {
             prev_token = token;
@@ -407,7 +398,7 @@ PHP_METHOD(ASTTree, parse) {
         }
 		MetaParser(parser, major, token, obj);
 		if(major < 0) {
-			//TODO error reporting
+			/* TODO error reporting */
 			break;
 		}
 		if(0 == major) {
@@ -448,7 +439,8 @@ static const function_entry php_meta_asttree_functions[] = {
 };
 /* }}} */
 /* }}} */
-/* {{{ class ASTUnaryNode extends ASTNode */
+/* {{{ class ASTUnaryNode extends ASTNode
+ * An unary node has an operand and (optionally) an operator. It can also hold unneeded nodes between the two, in the $fill member */
 /* {{{ internal handlers */
 static zend_object_handlers unarynode_handlers;
 static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -495,7 +487,8 @@ PHP_METHOD(ASTUnaryNode, __construct) {
 	}
 }
 /* }}} */
-/* {{{ proto public void ASTUnaryNode::__toString() */
+/* {{{ proto public void ASTUnaryNode::__toString()
+ * Serialize an unary node to PHP code. This will also contain any unneeded nodes, if so desired. */
 PHP_METHOD(ASTUnaryNode, __toString) {
 	zval *obj, *property, *delim, *fill;
 
@@ -503,24 +496,24 @@ PHP_METHOD(ASTUnaryNode, __toString) {
 	RETVAL_EMPTY_STRING();
 	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
 	if(IS_NULL == Z_TYPE_P(property)) {
-		//TODO get default representation for operator $type
+		/* TODO get default representation for operator $type */
 	}
 	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		//TODO never occurs
+		/* TODO never occurs */
 	}
 	ALLOC_INIT_ZVAL(delim);
 	ALLOC_INIT_ZVAL(fill);
 	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
-	//TODO XXX if property is empty, fill it with default values (like the ' ' between echo and an expression)
+	/* TODO XXX if property is empty, fill it with default values (like the ' ' between echo and an expression) */
 	php_implode(delim, property, fill TSRMLS_CC);
 	zval_ptr_dtor(&delim);
 	if(FAILURE == concat_function(return_value, return_value, fill TSRMLS_CC)) {
-		//TODO but concat_function never returns FAILURE
+		/* TODO but concat_function never returns FAILURE */
 	}
 	zval_ptr_dtor(&fill);
 	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operand")-1, 0 TSRMLS_CC);
 	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		//TODO never occurs
+		/* TODO never occurs */
 	}
 }
 /* }}} */
@@ -536,7 +529,8 @@ PHP_METHOD(ASTUnaryNode, setOperand) {
 	Z_ADDREF_P(operand);
 }
 /* }}} */
-/* {{{ proto public void ASTUnaryNode::setOpRepresentation(string $operator) */
+/* {{{ proto public void ASTUnaryNode::setOpRepresentation(string $operator)
+ * Sometimes you will want something else than the default representation of an operator. */
 PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
 	zval *obj, *operator;
 
@@ -549,7 +543,7 @@ PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
 }
 /* }}} */
 /* {{{ proto public void ASTUnaryNode::appendBetween(mixed $child)
- * Append $child to the nodes filling the space between the operator and the operand */
+ * Append $child to the nodes filling the space between the operator and the operand. */
 PHP_METHOD(ASTUnaryNode, appendBetween) {
 	zval *obj, *fill, *child;
 
@@ -615,7 +609,8 @@ static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC
 	return retval;
 }
 /* }}} */
-/* {{{ proto public void ASTBinaryNode::__construct(int $type, ASTTree $tree [, mixed $lhs, mixed $rhs [, mixed $operator]]) */
+/* {{{ proto public void ASTBinaryNode::__construct(int $type, ASTTree $tree [, mixed $lhs, mixed $rhs [, mixed $operator]])
+ * A binary node has a LHS, a RHS, and an operator. It can also hold unneeded nodes between found between them in the original source. */
 PHP_METHOD(ASTBinaryNode, __construct) {
 	zval *obj, *root;
 	zval *lhs, *operator, *rhs;
@@ -629,10 +624,10 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
-	//bit twiddling with pointers, yes, not readable, yes, more compact than nested if/else
+	/* bit twiddling with pointers, yes, not readable, but, more compact than nested if/else */
 	if((!!(size_t)lhs ^ !!(size_t)rhs)) {
-		//TODO error: either both lhs and rhs, or none
-		//TODO free memory?
+		/* TODO error: either both lhs and rhs, or none */
+		/* TODO free memory? */
 		return;
 	}
 	else {
@@ -651,7 +646,8 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 	}
 }
 /* }}} */
-/* {{{ proto public string ASTBinaryNode::__toString() */
+/* {{{ proto public string ASTBinaryNode::__toString()
+ * Serialize the node to PHP code. */
 PHP_METHOD(ASTBinaryNode, __toString) {
 	zval *obj, *property;
 
@@ -659,22 +655,23 @@ PHP_METHOD(ASTBinaryNode, __toString) {
 	RETVAL_EMPTY_STRING();
 	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("lhs")-1, 0 TSRMLS_CC);
 	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
 	}
-	//TODO check root's flags and serialize between_lhs_operator if needed
+	/* TODO check root's flags and serialize between_lhs_operator if needed */
 	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
 	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
 	}
-	//TODO check root's flags and serialize between_operator_rhs if needed
+	/* TODO check root's flags and serialize between_operator_rhs if needed */
 	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("rhs")-1, 0 TSRMLS_CC);
 	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		//TODO error reporting, though concat_function never returns FAILURE (? fix the engine)
+		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
 	}
 }
 /* }}} */
 /* {{{ proto public void ASTBinaryNode::appendBetween($child, $where)
- * Append $child to the filling area $where */
+ * Append $child to the filling area $where. */
+/* TODO introduce symbolic names for the areas BETWEEN_LHS_OPERATOR=1, BETWEEN_OPERATOR_RHS=2 */
 PHP_METHOD(ASTBinaryNode, appendBetween) {
 	zval *obj, *fill, *child;
 	long where;
@@ -692,14 +689,15 @@ PHP_METHOD(ASTBinaryNode, appendBetween) {
 			fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
 			break;
 		default:
-			//TODO error: invalid place to append child to, eventually introduce symbolic constants for ASTBinaryNode
+			/* TODO error: invalid place to append child to */
 			return;
 	}
-	//Z_ADDREF_P(child);
+	Z_ADDREF_P(child);
 	add_next_index_zval(fill, child);
 }
 /* }}} */
-/* {{{ proto public void ASTBinaryNode::setLHS(mixed $node) */
+/* {{{ proto public void ASTBinaryNode::setLHS(mixed $node)
+ * Set or change the left hand-side of the binary operation. */
 PHP_METHOD(ASTBinaryNode, setLHS) {
 	zval *obj, *lhs;
 
@@ -712,7 +710,9 @@ PHP_METHOD(ASTBinaryNode, setLHS) {
 }
 /* }}} */
 /* {{{ proto public void ASTBinaryNode::setOpRepresentation(string $representation)
- * Set the string representation of the operator */
+ * Set the string representation of the operator. */
+/* NOTE: right now this allows me to do both, specify "iNsTanCeOf" instead of "instanceof", but also turn a '+' into a '*', which does not match $type any more
+ * TODO: allow this only for $type's (major numbers) whose operator can have different spellings without affecting the semantics */
 PHP_METHOD(ASTBinaryNode, setOpRepresentation) {
 	zval *obj, *operator;
 
@@ -720,7 +720,7 @@ PHP_METHOD(ASTBinaryNode, setOpRepresentation) {
 				&operator)) {
 		WRONG_PARAM_COUNT;
 	}
-	//TODO accept only string (?)
+	/* TODO accept only string (?) */
 	obj = getThis();
 	META_UP_PROP(binarynode, obj, "operator", operator);
 }
@@ -769,8 +769,8 @@ static const function_entry php_meta_astbinarynode_functions[] = {
 };
 /* }}} */
 /* }}} */
-/* {{{ class ASTTernaryNode extends ASTNode */
-//TODO implement the ASTTernaryNode class. There has been no need for it yet
+/* {{{ class ASTTernaryNode extends ASTNode
+ * Not yet implemented */
 /* {{{ proto public void ASTTernaryNode::__construct */
 PHP_METHOD(ASTTernaryNode, __construct) {
 
