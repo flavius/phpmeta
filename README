@@ -1,0 +1,6 @@
+Build ASTs and CSTs from PHP source code
+
+A PHP module for generating the AST tree of a PHP source code, useful for
+userland tools for static code analysis, a preprocessor, meta programming.
+
+See README.md for further details.
