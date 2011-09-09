@@ -39,3 +39,10 @@ _*
 .gitCOMMIT_EDITMSG
 tests/*.php
 tests/*.phps
+tests/*.diff
+tests/*.exp
+tests/*.log
+tests/*.out
+tests/*.sh
+tests/*.mem
+
