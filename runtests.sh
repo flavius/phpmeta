@@ -1,11 +1,7 @@
 #!/bin/bash
 
-PHP_V=5.3.6
+PHP_V=$FLAV_ACTIVATED_PHP
 
-PHP_D=$(echo $PHP_V | sed s/\\./_/g)
-
-echo $PHP_D
-
-sudo -u flav TEST_PHP_EXECUTABLE=/usr/local/php$PHP_V/bin/php /home/flav/projects/php/php_$PHP_D/run-tests.php \
+sudo -u flav TEST_PHP_EXECUTABLE=/usr/local/php$PHP_V/bin/php $FLAV_SRCACTIVE_PHP/run-tests.php \
 	-m \
-	--show-diff $*
+	$*
