@@ -70,10 +70,9 @@ zend_module_entry meta_module_entry = {
     STANDARD_MODULE_PROPERTIES
 };
 /* }}} */
-/* {{{ zval** get_params_ex(const char *fmt, va_list *argp) */
-static zval** get_params_ex(const char *fmt, va_list *argp) {
-    zval** params;
-    size_t len;
+/* {{{ zval*** get_params_ex(const char *fmt,size_t len, va_list argp) */
+static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
+    zval*** params;
     size_t i, j;
 
     char *s;
@@ -83,48 +82,50 @@ static zval** get_params_ex(const char *fmt, va_list *argp) {
     zend_bool b;
 
 
-    len = strlen(fmt);
-    params = safe_emalloc(len, sizeof(zval*), 0);
+    params = safe_emalloc(len, sizeof(zval**), 0);
     if(NULL == params) {
         return NULL;
     }
+	for(i=0; i < len; i++) {
+		params[i] = emalloc(sizeof(zval*));
+	}
 
     for(i=0; i < len; i++) {
         switch(fmt[i]) {
             case 's':
-                MAKE_STD_ZVAL(params[i]);
-                s = va_arg(*argp, char*);
-                ZVAL_STRING(params[i], s, 1);
+                s = va_arg(argp, char*);
+                MAKE_STD_ZVAL(*params[i]);
+                ZVAL_STRING(*params[i], s, 1);
                 break;
             case 'l':
-                MAKE_STD_ZVAL(params[i]);
-                l = va_arg(*argp, long);
-                ZVAL_LONG(params[i], l);
+                l = va_arg(argp, long);
+                MAKE_STD_ZVAL(*params[i]);
+                ZVAL_LONG(*params[i], l);
                 break;
             case 'd':
-                MAKE_STD_ZVAL(params[i]);
-                d = va_arg(*argp, double);
-                ZVAL_DOUBLE(params[i], d);
+                d = va_arg(argp, double);
+                MAKE_STD_ZVAL(*params[i]);
+                ZVAL_DOUBLE(*params[i], d);
                 break;
             case 'b':
-                MAKE_STD_ZVAL(params[i]);
-                b = va_arg(*argp, int);
-                ZVAL_BOOL(params[i], b);
+                b = va_arg(argp, int);
+                MAKE_STD_ZVAL(*params[i]);
+                ZVAL_BOOL(*params[i], b);
                 break;
             case 'r':
-                MAKE_STD_ZVAL(params[i]);
-                r = va_arg(*argp, long);
-                ZVAL_RESOURCE(params[i], r);
+                r = va_arg(argp, long);
+                MAKE_STD_ZVAL(*params[i]);
+                ZVAL_RESOURCE(*params[i], r);
                 break;
             case 'z':
-                z = va_arg(*argp, zval*);
+                z = va_arg(argp, zval*);
                 /*TODO if z is NULL, turn it into a IS_NULL*/
-                params[i] = z;
+                *params[i] = z;
                 break;
             default:
                 /*TODO output error "wrong fmt specifier"*/
                 for(j = 0; j < i; j++) {
-                    zval_ptr_dtor(&params[i]);
+                    zval_ptr_dtor(params[i]);
                 }
                 efree(params);
                 return NULL;
@@ -149,22 +150,18 @@ static zval** get_params(const char *fmt, ...) {
  * valid format specifiers are [sldbrz] for string, long, double, boolean, resource, zval */
 META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope,
        zend_bool native_null TSRMLS_DC, char* fmt, ...) {
-    zval **params;
+    zval ***params;
     int argc;
     zval *retval_ptr;
     zend_fcall_info fci;
     zend_fcall_info_cache fcc;
 
-    /*TODO strlen() is called in get_params_ex() too, fix it*/
     if(NULL != fmt) {
         va_list argv;
-        va_list temp_argv;
 
         argc = strlen(fmt);
         va_start(argv, fmt);
-        va_copy(temp_argv, argv);
-        params = get_params_ex(fmt, &temp_argv);
-        va_end(temp_argv);
+        params = get_params_ex(fmt, argc, argv);
         va_end(argv);
     }
     else {
@@ -181,7 +178,7 @@ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend
     fci.object_ptr = obj;
     fci.retval_ptr_ptr = &retval_ptr;
     fci.param_count = argc;
-    fci.params = &params;
+    fci.params = params;
     fci.no_separation = 1;
 
     fcc.initialized = 1;
@@ -217,7 +214,7 @@ clean_params:
     if(NULL != params) {
         int i;
         for(i=0; i < argc; i++) {
-            zval_ptr_dtor(&params[i]);
+            zval_ptr_dtor(params[i]);
         }
         efree(params);
     }
