@@ -1,8 +1,9 @@
 set confirm off
 set breakpoint pending on
 
-set args -f my_t/test_parser.php
-break meta_parser.y:283
+source environment.gdb
+set args -f tests/ASTTree_addition.php
+break obj_call_method_internal_ex
 ################# common places for ZE2, php 5.3.3:
 ### now we have the module symbols
 #break zend_startup_modules
