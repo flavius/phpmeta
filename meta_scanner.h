@@ -107,7 +107,10 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
 
 /*status codes for meta_scan, meta_scanner.err_no*/
 #define ERR_NONE 0
+/* we have reached EOI */
+/* TODO we will probably need something else too when we introduce streams to the scanner */
 #define ERR_EOI 1
+/* overflow! */
 #define ERR_FILLOVERFLOW 2
 
 #define YYCTYPE char

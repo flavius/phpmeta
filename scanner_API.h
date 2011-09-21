@@ -26,7 +26,16 @@ extern const unsigned int meta_scanner_maxfill;
 META_API zval* meta_token_zval(TOKEN *token);
 META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr);
 META_API void meta_scanner_free(meta_scanner **scanner);
-META_API void meta_token_dtor(TOKEN** t, zend_bool deep);
+
+#define META_TOK_CHAIN_GO_LEFT          1
+#define META_TOK_CHAIN_GO_RIGHT         2
+#define META_TOK_CHAIN_DEEPFREE_LEFT    4
+#define META_TOK_CHAIN_DEEPFREE_RIGHT   8
+#define META_TOK_CHAIN_FREESELF         16
+#define META_TOK_CHAIN_FREESELF_DEEP    32
+
+META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit, void* rightlimit);
+//META_API void meta_token_dtor(TOKEN** t, zend_bool deep);
 META_API zval* meta_scanner_token_zval(TOKEN* t);
 META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags);
 

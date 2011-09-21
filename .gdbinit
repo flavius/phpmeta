@@ -2,8 +2,25 @@ set confirm off
 set breakpoint pending on
 
 source environment.gdb
-set args -f tests/ASTTree_addition.php
-break obj_call_method_internal_ex
+set args -f tests/ASTTree_fromsource.php
+break meta_tree_dtor
+break meta_unarynode_dtor
+break meta_binarynode_dtor
+break meta_nodelist_dtor
+break meta_tree_free
+break meta_unarynode_free
+break meta_binarynode_free
+break meta_nodelist_free
+
+break zim_ASTNodeList___construct
+
+#break meta_binarynode_free
+#break zim_ASTTree_parse
+#break meta_scanner_free
+#break zim_ASTTree___construct
+#break ap_php_conv_10
+#break xbuf_format_converter
+#break zim_ASTUnaryNode___construct
 ################# common places for ZE2, php 5.3.3:
 ### now we have the module symbols
 #break zend_startup_modules

@@ -113,9 +113,10 @@ static zend_object_value create_object_binarynode(zend_class_entry* TSRMLS_DC);
 #define META_DECREF_HTITEM(obj, visibility, prop, into) do { char* property_name; int property_len; \
             zend_mangle_property_name(&property_name, &property_len, visibility, sizeof(visibility)-1, STRL_PAIR(prop), 0); \
             if(SUCCESS == zend_hash_find((obj)->properties, property_name, property_len, (void**)&(into))) { \
-                if(Z_REFCOUNT_PP(into) > 1) { zval_ptr_dtor((into)); } \
+                if(Z_REFCOUNT_PP(into) > 1 || 0) { zval_ptr_dtor((into)); } \
             } efree(property_name); \
         } while(0)
+/* else { zend_hash_update(obj->properties, property_name, property_len, ); } \ */
 
 #define META_UPDATE_HPROPERTY(obj, visibility, name, value) do { char* property_name; int property_len; \
 		zend_mangle_property_name(&property_name, &property_len, visibility, sizeof(visibility)-1, STRL_PAIR(name), 0); \

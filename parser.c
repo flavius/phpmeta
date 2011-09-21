@@ -54,7 +54,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
 	META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(nodelist), PHP_META_ASTNODELIST_CE_NAME TSRMLS_CC);
-	META_PROP_ZERO(tree, "source", PROTECTED);
+	META_PROP_NULL(tree, "source", PROTECTED);
 	META_PROP_ZERO(tree, "flags", PROTECTED);
 	memcpy(&tree_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(tree)->create_object = create_object_tree;
@@ -145,7 +145,7 @@ PHP_METHOD(ASTNode, setParent) {
 		}
 		/* TODO notify the parent? */
 		META_UP_PROP(node, obj, "parent", parent);
-		Z_ADDREF_P(parent);
+		//Z_ADDREF_P(parent);
 	}
 }
 /* }}} */
@@ -174,6 +174,21 @@ static const function_entry php_meta_astnode_functions[] = {
 /* {{{ class ASTNodeList */
 /* {{{ internal handlers */
 static zend_object_handlers nodelist_handlers;
+static void meta_nodelist_free(void *object TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	zend_objects_free_object_storage(obj TSRMLS_CC);
+}
+static void meta_nodelist_dtor(void *object, zend_object_handle handle TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+	obj = object;
+	META_DECREF_HTITEM(obj, "*", "children", property);
+	META_DECREF_HTITEM(obj, "*", "root", property);
+	zend_objects_destroy_object(obj, handle TSRMLS_CC);
+}
 static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) {
 	zend_object_value retval;
 	zend_object *obj;
@@ -187,7 +202,7 @@ static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) 
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "children", property);
 
-	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handle = zend_objects_store_put(obj, meta_nodelist_dtor, meta_nodelist_free, NULL TSRMLS_CC);
 	retval.handlers = &nodelist_handlers;
 	return retval;
 }
@@ -282,6 +297,22 @@ static const function_entry php_meta_astnodelist_functions[] = {
 
 static zend_object_handlers tree_handlers;
 
+static void meta_tree_free(void *object TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	zend_objects_free_object_storage(obj TSRMLS_CC);
+}
+
+static void meta_tree_dtor(void *object, zend_object_handle handle TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+	obj = object;
+	META_DECREF_HTITEM(obj, "*", "children", property);
+	zend_objects_destroy_object(obj, handle TSRMLS_CC);
+}
+
 static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
 	zend_object_value retval;
 	zend_object *obj;
@@ -295,7 +326,7 @@ static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "children", property);
 
-	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handle = zend_objects_store_put(obj, meta_tree_dtor, meta_tree_free, NULL TSRMLS_CC);
 	retval.handlers = &tree_handlers;
 
 	return retval;
@@ -319,7 +350,7 @@ PHP_METHOD(ASTTree, __construct) {
 	META_UP_PROP_L(tree, obj, "flags", flags);
 	if(source) {
 		META_UP_PROP(tree, obj, "source", source);
-		Z_ADDREF_P(source);
+		//Z_ADDREF_P(source);
 	}
 }
 /* }}} */
@@ -381,6 +412,7 @@ PHP_METHOD(ASTTree, parse) {
 		flags = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("flags")-1, 0 TSRMLS_CC);
 	}
 
+	Z_ADDREF_P(source);
 	scanner = meta_scanner_alloc(source, Z_LVAL_P(flags));
 	parser = MetaParserAlloc(meta_alloc);
 
@@ -409,6 +441,7 @@ PHP_METHOD(ASTTree, parse) {
 
 	MetaParserFree(parser, meta_free);
 	meta_scanner_free(&scanner);
+	Z_DELREF_P(source);
 }
 /* }}} */
 /* {{{ ASTTree methods */
@@ -443,6 +476,22 @@ static const function_entry php_meta_asttree_functions[] = {
  * An unary node has an operand and (optionally) an operator. It can also hold unneeded nodes between the two, in the $fill member */
 /* {{{ internal handlers */
 static zend_object_handlers unarynode_handlers;
+static void meta_unarynode_free(void *object TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	zend_objects_free_object_storage(obj TSRMLS_CC);
+}
+static void meta_unarynode_dtor(void *object, zend_object_handle handle TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	META_DECREF_HTITEM(obj, "*", "fill", property);
+	META_DECREF_HTITEM(obj, "*", "root", property);
+	zend_objects_destroy_object(obj, handle TSRMLS_CC);
+}
 static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC) {
 	zend_object_value retval;
 	zend_object *obj;
@@ -456,7 +505,7 @@ static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC)
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "fill", property);
 
-	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handle = zend_objects_store_put(obj, meta_unarynode_dtor, meta_unarynode_free, NULL TSRMLS_CC);
 	retval.handlers = &unarynode_handlers;
 	return retval;
 }
@@ -479,11 +528,11 @@ PHP_METHOD(ASTUnaryNode, __construct) {
 	Z_ADDREF_P(root);
 	if(NULL != operand) {
 		META_UP_PROP(unarynode, obj, "operand", operand);
-		Z_ADDREF_P(operand);
+		//Z_ADDREF_P(operand);
 	}
 	if(NULL != operator) {
 		META_UP_PROP(unarynode, obj, "operator", operator);
-		Z_ADDREF_P(operator);
+		//Z_ADDREF_P(operator);
 	}
 }
 /* }}} */
@@ -526,7 +575,7 @@ PHP_METHOD(ASTUnaryNode, setOperand) {
 	}
 	obj = getThis();
 	META_UP_PROP(unarynode, obj, "operand", operand);
-	Z_ADDREF_P(operand);
+	//Z_ADDREF_P(operand);
 }
 /* }}} */
 /* {{{ proto public void ASTUnaryNode::setOpRepresentation(string $operator)
@@ -539,7 +588,7 @@ PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
 	}
 	obj = getThis();
 	META_UP_PROP(unarynode, obj, "operator", operator);
-	Z_ADDREF_P(operator);
+	//Z_ADDREF_P(operator);
 }
 /* }}} */
 /* {{{ proto public void ASTUnaryNode::appendBetween(mixed $child)
@@ -588,6 +637,24 @@ static const function_entry php_meta_astunarynode_functions[] = {
 /* {{{ class ASTBinaryNode extends ASTNode */
 /* {{{ internal handlers */
 static zend_object_handlers binarynode_handlers;
+static void meta_binarynode_free(void *object TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	zend_objects_free_object_storage(obj TSRMLS_CC); // zend_object_std_dtor + efree
+}
+static void meta_binarynode_dtor(void *object, zend_object_handle handle TSRMLS_DC) {
+	zend_object *obj;
+	zval **property;
+
+	obj = object;
+	META_DECREF_HTITEM(obj, "*", "between_lhs_operator", property);
+	META_DECREF_HTITEM(obj, "*", "between_operator_rhs", property);
+	META_DECREF_HTITEM(obj, "*", "root", property);
+	//call the destructor
+	zend_objects_destroy_object(obj, handle TSRMLS_CC);
+}
 static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC) {
 	zend_object_value retval;
 	zend_object *obj;
@@ -604,7 +671,7 @@ static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "between_operator_rhs", property);
 
-	retval.handle = zend_objects_store_put(obj, NULL, NULL, NULL TSRMLS_CC);
+	retval.handle = zend_objects_store_put(obj, meta_binarynode_dtor, meta_binarynode_free, NULL TSRMLS_CC);
 	retval.handlers = &binarynode_handlers;
 	return retval;
 }
@@ -633,8 +700,8 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 	else {
 		META_UP_PROP(binarynode, obj, "lhs", lhs);
 		META_UP_PROP(binarynode, obj, "rhs", rhs);
-		Z_ADDREF_P(lhs);
-		Z_ADDREF_P(rhs);
+		//Z_ADDREF_P(lhs);
+		//Z_ADDREF_P(rhs);
 	}
 
 	META_UP_PROP_L(binarynode, obj, "type", type);
@@ -642,7 +709,7 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 	Z_ADDREF_P(root);
 	if(operator) {
 		META_UP_PROP(binarynode, obj, "operator", operator);
-		Z_ADDREF_P(operator);
+		//Z_ADDREF_P(operator);
 	}
 }
 /* }}} */

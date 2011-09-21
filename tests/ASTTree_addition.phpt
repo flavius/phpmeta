@@ -1,5 +1,5 @@
 --TEST--
-Construct an ASTTree from a given source
+Binary node as an addition from source
 --CREDITS--
 Flavius Aspra <flavius.as@gmail.com>
 --FILE--
@@ -10,4 +10,5 @@ $tree->parse();
 var_dump((string)$tree);
 ?>
 --EXPECT--
-string(11) "<?php 20+22"
+s
+tring(11) "<?php 20+22"

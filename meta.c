@@ -215,6 +215,7 @@ clean_params:
         int i;
         for(i=0; i < argc; i++) {
             zval_ptr_dtor(params[i]);
+			efree(params[i]);
         }
         efree(params);
     }

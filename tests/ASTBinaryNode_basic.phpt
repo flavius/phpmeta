@@ -1,5 +1,5 @@
 --TEST--
-Construct a simple ASTBinaryNode inside a simple tree
+Construct a simple ASTBinaryNode inside a simple tree programmatically
 --CREDITS--
 Flavius Aspra <flavius.as@gmail.com>
 --FILE--
@@ -54,7 +54,7 @@ object(ASTTree)#1 (8) {
     }
   }
   ["source":protected]=>
-  int(0)
+  NULL
   ["flags":protected]=>
   int(0)
 }

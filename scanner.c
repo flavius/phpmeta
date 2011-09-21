@@ -59,7 +59,16 @@ PHP_FUNCTION(meta_scanner_get) {
     }
     token = meta_scan(scanner TSRMLS_CC);
     meta_token_zval_ex(token, return_value);
-    meta_token_dtor(&token, 0);
+	meta_token_dtor(&token, META_TOK_CHAIN_FREESELF, NULL, NULL);
+	//Z_ADDREF_P(return_value);
+    //meta_token_dtor(&token, 0);
+}
+/* }}} */
+
+/* {{{ proto void meta_scanner_reset(scanner_handle $handle)
+ * reset the state of the scanner, prepare for starting over */
+PHP_FUNCTION(meta_scanner_reset) {
+	/* TODO implement me */
 }
 /* }}} */
 /* {{{ proto string meta_scanner_token_name(int $type)
@@ -77,6 +86,7 @@ PHP_FUNCTION(meta_scanner_token_name) {
  * destroy all the internal data attached to the scanner */
 META_API void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
+	//zval_ptr_dtor(&scanner->rawsrc);
     meta_scanner_free(&scanner);
 }
 /* }}} */

@@ -1,12 +1,10 @@
 --TEST--
-Construct an empty ASTTree
+Construct an empty ASTTree programmatically
 --CREDITS--
-Flavius Aspra <flavius.as@gmail.com>
+Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
-
 $tree = new ASTTree(0, "empty");
-
 var_dump($tree);
 var_dump((string)$tree);
 ?>

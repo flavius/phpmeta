@@ -48,7 +48,7 @@ META_API void meta_token_zval_ex(TOKEN *token, zval *tok_repr) {
     add_assoc_long(tok_repr, "start_line", token->start_line);
     add_assoc_long(tok_repr, "end_line", token->end_line);
     if(NULL != TOKEN_MINOR(token)) {
-        zval_add_ref(&token->minor);
+        //zval_add_ref(&token->minor);
         add_assoc_zval(tok_repr, "minor", token->minor);
     }
     else {
@@ -71,16 +71,17 @@ META_API zval* meta_scanner_token_zval(TOKEN* t) {
 META_API void meta_scanner_free(meta_scanner **scanner) {
     int elems;
     TOKEN* token;
-    zval_ptr_dtor(&((*scanner)->rawsrc));
     /* TODO inspect (*scanner)->buffer->max for real inputs - how big does the stack grow? */
     elems = zend_ptr_stack_num_elements((*scanner)->buffer);
     while(elems--) {
         token = zend_ptr_stack_pop((*scanner)->buffer);
-        meta_token_dtor(&token, 1);
+		meta_token_dtor(&token, META_TOK_CHAIN_FREESELF | META_TOK_CHAIN_FREESELF_DEEP, NULL, NULL);
     }
     zend_ptr_stack_destroy((*scanner)->buffer);
     efree((*scanner)->buffer);
+	zval_ptr_dtor(&(*scanner)->rawsrc);
     efree(*scanner);
+	*scanner=NULL;
 }
 /* }}} */
 /* {{{ META_API void meta_token_dtor(TOKEN** t, zend_bool deep)
@@ -97,6 +98,7 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
  * 2. introduce new parameter to signal whether TOKEN_IS_FREEABLE should be taken into consideration or not
  * 3. introduce a new parameter to signal whether we should stop as soon as we see a non-freeable token in the chain, for the given direction
  * that's three flags: DEEP, IF_FREEABLE, FULL_STOP, TODO put them all in a bitmask */
+/*
 META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
     TOKEN *cursor, *prev;
     cursor = (*t)->prev;
@@ -109,7 +111,6 @@ META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
         efree(prev);
     }
     cursor = *t;
-	/* currently, we are not doing what we've docummented. We are free'ing in both directions. TODO: This will be fixed */
     while(NULL != cursor && TOKEN_IS_FREEABLE(cursor)) {
         if(deep) {
             zval_ptr_dtor(&TOKEN_MINOR(cursor));
@@ -120,19 +121,54 @@ META_API void meta_token_dtor(TOKEN** t, zend_bool deep) {
     }
     *t=NULL;
 }
+*/
+/* TODO rename to meta_token_dtor */
+META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit, void* rightlimit) {
+	TOKEN *cursor, *prev;
+	if(flags & META_TOK_CHAIN_GO_LEFT) {
+		cursor = (*start)->prev;
+		while(cursor != leftlimit) {
+			if(flags & META_TOK_CHAIN_DEEPFREE_LEFT) {
+				zval_ptr_dtor(&TOKEN_MINOR(cursor));
+			}
+			prev = cursor;
+			cursor = cursor->prev;
+			efree(prev);
+		}
+	}
+	if(flags & META_TOK_CHAIN_GO_RIGHT) {
+		cursor = (*start)->next;
+		while(cursor != rightlimit) {
+			if(flags & META_TOK_CHAIN_DEEPFREE_RIGHT) {
+				zval_ptr_dtor(&TOKEN_MINOR(cursor));
+			}
+			prev = cursor;
+			cursor = cursor->next;
+			efree(prev);
+		}
+	}
+	if(flags & META_TOK_CHAIN_FREESELF) {
+		cursor = *start;
+		if(flags & META_TOK_CHAIN_FREESELF_DEEP) {
+			zval_ptr_dtor(&TOKEN_MINOR(cursor));
+		}
+		efree(cursor);
+		*start = NULL;
+	}
+}
 /* }}} */
 /* {{{ META_API meta_scanner* meta_scanner_alloc(zval *rawsrc, long flags)
  * Allocate and initialize new scanner */
 META_API meta_scanner* meta_scanner_alloc(zval* rawsrc, long flags) {
     meta_scanner *scanner;
-    Z_STRVAL_P(rawsrc) = erealloc(Z_STRVAL_P(rawsrc), Z_STRLEN_P(rawsrc)+meta_scanner_maxfill);
-    memset(Z_STRVAL_P(rawsrc)+Z_STRLEN_P(rawsrc), 0, meta_scanner_maxfill);
+    //Z_STRVAL_P(rawsrc) = erealloc(Z_STRVAL_P(rawsrc), Z_STRLEN_P(rawsrc)+meta_scanner_maxfill);
+    //memset(Z_STRVAL_P(rawsrc)+Z_STRLEN_P(rawsrc), 0, meta_scanner_maxfill);
+	Z_ADDREF_P(rawsrc);
 
     scanner = emalloc(sizeof(meta_scanner));
     scanner->limit = Z_STRVAL_P(rawsrc) + Z_STRLEN_P(rawsrc) + meta_scanner_maxfill - 1;
     scanner->src = Z_STRVAL_P(rawsrc);
     scanner->src_len = Z_STRLEN_P(rawsrc);
-    zval_add_ref(&rawsrc);
     scanner->cursor = scanner->ctxmarker = scanner->marker = scanner->src;
 
     scanner->state = STATE(ST_INITIAL);
