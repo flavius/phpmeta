@@ -145,7 +145,6 @@ PHP_METHOD(ASTNode, setParent) {
 		}
 		/* TODO notify the parent? */
 		META_UP_PROP(node, obj, "parent", parent);
-		//Z_ADDREF_P(parent);
 	}
 }
 /* }}} */
@@ -186,7 +185,7 @@ static void meta_nodelist_dtor(void *object, zend_object_handle handle TSRMLS_DC
 	zval **property;
 	obj = object;
 	META_DECREF_HTITEM(obj, "*", "children", property);
-	META_DECREF_HTITEM(obj, "*", "root", property);
+	//META_DECREF_HTITEM(obj, "*", "root", property);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) {
@@ -217,7 +216,6 @@ PHP_METHOD(ASTNodeList, __construct) {
 	}
 	obj = getThis();
 	META_UP_PROP(nodelist, obj, "root", root);
-	Z_ADDREF_P(root);
 }
 /* }}} */
 /* {{{ proto public string ASTNodeList::__toString() */
@@ -350,7 +348,6 @@ PHP_METHOD(ASTTree, __construct) {
 	META_UP_PROP_L(tree, obj, "flags", flags);
 	if(source) {
 		META_UP_PROP(tree, obj, "source", source);
-		//Z_ADDREF_P(source);
 	}
 }
 /* }}} */
@@ -391,7 +388,8 @@ PHP_METHOD(ASTTree, setSource) {
 	META_UP_PROP(tree, obj, "source", source);
 }
 /* }}} */
-/* {{{ proto public void ASTTree::parse([int $flags]) */
+/* {{{ proto public bool ASTTree::parse([int $flags])
+ * Parse the tree, if modified in the meantime or there is a source to parse */
 PHP_METHOD(ASTTree, parse) {
 	zval *obj, *flags, *source;
 	meta_scanner *scanner;
@@ -407,6 +405,9 @@ PHP_METHOD(ASTTree, parse) {
 	}
 	obj = getThis();
 	source = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("source")-1, 0 TSRMLS_CC);
+	if(Z_TYPE_P(source) == IS_NULL) {
+		RETURN_FALSE;
+	}
 	/* TODO source can be IS_NULL, check it first, fail if necessary */
 	if(!flags) {
 		flags = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("flags")-1, 0 TSRMLS_CC);
@@ -442,6 +443,7 @@ PHP_METHOD(ASTTree, parse) {
 	MetaParserFree(parser, meta_free);
 	meta_scanner_free(&scanner);
 	Z_DELREF_P(source);
+	RETURN_TRUE;
 }
 /* }}} */
 /* {{{ ASTTree methods */
@@ -489,7 +491,7 @@ static void meta_unarynode_dtor(void *object, zend_object_handle handle TSRMLS_D
 
 	obj = object;
 	META_DECREF_HTITEM(obj, "*", "fill", property);
-	META_DECREF_HTITEM(obj, "*", "root", property);
+	//META_DECREF_HTITEM(obj, "*", "root", property);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -525,14 +527,11 @@ PHP_METHOD(ASTUnaryNode, __construct) {
 	obj = getThis();
 	META_UP_PROP_L(unarynode, obj, "type", type);
 	META_UP_PROP(unarynode, obj, "root", root);
-	Z_ADDREF_P(root);
 	if(NULL != operand) {
 		META_UP_PROP(unarynode, obj, "operand", operand);
-		//Z_ADDREF_P(operand);
 	}
 	if(NULL != operator) {
 		META_UP_PROP(unarynode, obj, "operator", operator);
-		//Z_ADDREF_P(operator);
 	}
 }
 /* }}} */
@@ -575,7 +574,6 @@ PHP_METHOD(ASTUnaryNode, setOperand) {
 	}
 	obj = getThis();
 	META_UP_PROP(unarynode, obj, "operand", operand);
-	//Z_ADDREF_P(operand);
 }
 /* }}} */
 /* {{{ proto public void ASTUnaryNode::setOpRepresentation(string $operator)
@@ -588,7 +586,6 @@ PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
 	}
 	obj = getThis();
 	META_UP_PROP(unarynode, obj, "operator", operator);
-	//Z_ADDREF_P(operator);
 }
 /* }}} */
 /* {{{ proto public void ASTUnaryNode::appendBetween(mixed $child)
@@ -651,7 +648,7 @@ static void meta_binarynode_dtor(void *object, zend_object_handle handle TSRMLS_
 	obj = object;
 	META_DECREF_HTITEM(obj, "*", "between_lhs_operator", property);
 	META_DECREF_HTITEM(obj, "*", "between_operator_rhs", property);
-	META_DECREF_HTITEM(obj, "*", "root", property);
+	//META_DECREF_HTITEM(obj, "*", "root", property);
 	//call the destructor
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
@@ -700,16 +697,12 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 	else {
 		META_UP_PROP(binarynode, obj, "lhs", lhs);
 		META_UP_PROP(binarynode, obj, "rhs", rhs);
-		//Z_ADDREF_P(lhs);
-		//Z_ADDREF_P(rhs);
 	}
 
 	META_UP_PROP_L(binarynode, obj, "type", type);
 	META_UP_PROP(binarynode, obj, "root", root);
-	Z_ADDREF_P(root);
 	if(operator) {
 		META_UP_PROP(binarynode, obj, "operator", operator);
-		//Z_ADDREF_P(operator);
 	}
 }
 /* }}} */

@@ -6,7 +6,8 @@ Flavius Aspra <flavius.as@gmail.com>
 <?php
 $tree = new ASTTree(0);
 //TODO have the '+' implicitly, based on 41
-$node = new ASTBinaryNode(41, $tree, 20, 22, '+');
+$lhs=20;
+$node = new ASTBinaryNode(41, $tree, $lhs, 22, '+');
 $tree->appendChild($node);
 var_dump($tree);
 var_dump((string)$tree);

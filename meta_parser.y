@@ -218,6 +218,7 @@ processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
     zval *end_line;
+    Z_ADDREF_P(tree);
     META_NODE_CTOR(nodelist, A, "z", tree);
     end_line = META_PROP(nodelist, C, "end_line");
     META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
@@ -247,6 +248,7 @@ top_stmt_list(A) ::= top_stmt(B) . {
 
     start_line = META_PROP(node, B, "start_line");
     end_line = META_PROP(node, B, "end_line");
+    Z_ADDREF_P(tree);
     META_NODE_CTOR(nodelist, A, "z", tree);
     META_CALL_METHOD(nodelist, A, appendchild, "z", B);
     META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
@@ -261,11 +263,13 @@ top_stmt(A) ::= expr(B) . {
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
+    Z_ADDREF_P(tree);
     META_NODE_CTOR(binarynode, A, "lzzzz", T_PLUS, tree, B, D, TOKEN_MINOR(C));
     efree(C);
 }
 
 expr(A) ::= LNUMBER(B) . {
+    Z_ADDREF_P(tree);
     META_NODE_CTOR(unarynode, A, "lzz", T_LNUMBER, tree, TOKEN_MINOR(B));
     META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
     B->prev->next = NULL;
