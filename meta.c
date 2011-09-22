@@ -125,7 +125,7 @@ static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
             default:
                 /*TODO output error "wrong fmt specifier"*/
                 for(j = 0; j < i; j++) {
-                    zval_ptr_dtor(params[i]);
+                    zval_ptr_dtor(params[j]);
                 }
                 efree(params);
                 return NULL;
