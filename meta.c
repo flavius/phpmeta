@@ -135,15 +135,6 @@ static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
 
 }
 /* }}} */
-/* not used, TODO keep it around, maybe sometime we'll need it
-static zval** get_params(const char *fmt, ...) {
-    va_list argp;
-    zval **ret;
-    va_start(argp, fmt);
-    ret = get_params_ex(fmt, &argp);
-    va_end(argp);
-    return ret;
-} */
 /* {{{ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function *func, zend_class_entry* calling_scope, zend_bool native_null TSRMLS_DC, char* fmt, ...)
  * call method func of the object obj of type ce from the specified scope and return the value returned by the calee.
  * if native_null is true, and the method returns a IS_NULL zval, then free that zval and return a NULL pointer

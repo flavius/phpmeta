@@ -408,7 +408,9 @@ PHP_METHOD(ASTTree, parse) {
 	if(Z_TYPE_P(source) == IS_NULL) {
 		RETURN_FALSE;
 	}
-	/* TODO source can be IS_NULL, check it first, fail if necessary */
+	else {
+		/* TODO what about cases when the source is not NULL but we've already got children inserted programmatically? */
+	}
 	if(!flags) {
 		flags = zend_read_property(META_CLASS(tree), obj, STRL_PAIR("flags")-1, 0 TSRMLS_CC);
 	}
