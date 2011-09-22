@@ -264,13 +264,13 @@ top_stmt(A) ::= expr(B) . {
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
     Z_ADDREF_P(tree);
-    META_NODE_CTOR(binarynode, A, "lzzzz", T_PLUS, tree, B, D, TOKEN_MINOR(C));
+    META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
     efree(C);
 }
 
 expr(A) ::= LNUMBER(B) . {
     Z_ADDREF_P(tree);
-    META_NODE_CTOR(unarynode, A, "lzz", T_LNUMBER, tree, TOKEN_MINOR(B));
+    META_NODE_CTOR(unarynode, A, "lzz", (long)T_LNUMBER, tree, TOKEN_MINOR(B));
     META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
     B->prev->next = NULL;
     B->next->prev = NULL;
