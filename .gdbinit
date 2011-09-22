@@ -2,9 +2,8 @@ set confirm off
 set breakpoint pending on
 
 source environment.gdb
-set args -f tests/ASTBinaryNode_basic.php
-break zend_vm_execute.h:475
-break zim_ASTBinaryNode___construct
+set args -f tests/ASTTree_fromsource.php
+break zim_ASTUnaryNode___construct
 
 #break meta_tree_dtor
 #break meta_unarynode_dtor

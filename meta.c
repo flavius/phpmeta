@@ -75,11 +75,11 @@ static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
     zval*** params;
     size_t i, j;
 
-    char *s;
-    long l,r;
-    double d;
-    zval *z;
-    zend_bool b;
+    char *s=NULL;
+    long l=-1,r=-1;
+    double d=-1;
+    zval *z=NULL;
+    zend_bool b=0;
 
 
     params = safe_emalloc(len, sizeof(zval**), 0);
