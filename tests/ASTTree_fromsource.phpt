@@ -9,7 +9,6 @@ Flavius Aspra <flavius.as@gmail.com>
 $tree = new ASTTree(0, "<?php 42");
 var_dump((string)$tree);
 $tree->parse();
-//TODO include this in the output
 var_dump($tree);
 var_dump((string)$tree);
 ?>
