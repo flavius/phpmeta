@@ -62,7 +62,7 @@ zend_module_entry meta_module_entry = {
 };
 /* }}} */
 /* {{{ zval*** get_params_ex(const char *fmt,size_t len, va_list argp) */
-static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
+static zval*** get_params_ex(const char *fmt, size_t len TSRMLS_DC, va_list argp) {
     zval*** params;
     size_t i, j;
 
@@ -110,15 +110,15 @@ static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
                 break;
             case 'z':
                 z = va_arg(argp, zval*);
-				if(NULL != z) {
-					*params[i] = z;
-				}
-				else {
-					ALLOC_INIT_ZVAL(*params[i]);
-				}
+                if(NULL != z) {
+                    *params[i] = z;
+                }
+                else {
+                    ALLOC_INIT_ZVAL(*params[i]);
+                }
                 break;
             default:
-                /*TODO output error "wrong fmt specifier"*/
+                php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Unexpected character '%c' in format specifier \"%s\"", fmt[i], fmt);
                 for(j = 0; j < i; j++) {
                     zval_ptr_dtor(params[j]);
                 }
@@ -147,7 +147,7 @@ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend
 
         argc = strlen(fmt);
         va_start(argv, fmt);
-        params = get_params_ex(fmt, argc, argv);
+        params = get_params_ex(fmt, argc TSRMLS_CC, argv);
         va_end(argv);
     }
     else {
@@ -175,23 +175,18 @@ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend
 
     /*if we want the object, and the object is not an object yet, we init it*/
     if(func == ce->constructor) {
-        /*TODO check obj's refcount, it has to be 1*/
         if(IS_NULL == Z_TYPE_P(obj)) {
             object_init_ex(obj, ce);
         }
         else {
-            /*TODO error: you've requested the object, but obj is not properly initialized*/
-            php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
+            php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot create an object in %s:%d", __FILE__, __LINE__);
             native_null = 1;
             goto clean_params;
         }
     }
 
-    /*TODO create a fcc/keep it around (in extension per-thread globals?)*/
-
     if(FAILURE == zend_call_function(&fci, &fcc TSRMLS_CC)) {
-        /*TODO proper error reporting*/
-        php_printf("fix TODO on line %d in '%s'\n", __LINE__, __FILE__);
+        php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot call %s::%s in %s:%d", ce->name, func->common.function_name, __FILE__, __LINE__);
         if(NULL != retval_ptr) {
             zval_ptr_dtor(&retval_ptr);
         }
@@ -215,7 +210,7 @@ clean_params:
             retval_ptr = NULL;
         }
         else {
-            /*TODO internal error: the caller (also C code) expects a native NULL ptr, but the method we've called returns something else than a IS_NULL*/
+            php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "The call %s::%s() does not return NULL as expected in %s:%d", ce->name, func->common.function_name, __FILE__, __LINE__);
         }
     }
     return retval_ptr;

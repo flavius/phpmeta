@@ -45,8 +45,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
  * Unlike zend_call_method(), this function allows you to call a method with C data types
  * It makes calling objects' methods more enjoyable from the C perspective
  */
-//static zval** get_params_ex(const char *fmt, va_list *argp);
-/* static zval** get_params(const char *fmt, ...); */
+//static zval*** get_params_ex(const char *fmt, size_t len TSRMLS_DC, va_list argp)
 
 /*TODO my debug, conditional define in 0.0.1*/
 #include <standard/php_var.h>
