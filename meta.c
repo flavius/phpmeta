@@ -110,8 +110,12 @@ static zval*** get_params_ex(const char *fmt, size_t len, va_list argp) {
                 break;
             case 'z':
                 z = va_arg(argp, zval*);
-                /*TODO if z is NULL, turn it into a IS_NULL*/
-                *params[i] = z;
+				if(NULL != z) {
+					*params[i] = z;
+				}
+				else {
+					ALLOC_INIT_ZVAL(*params[i]);
+				}
                 break;
             default:
                 /*TODO output error "wrong fmt specifier"*/
