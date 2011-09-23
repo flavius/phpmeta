@@ -14,6 +14,7 @@ $inputs = array(
     'abc<?php 42',
     'a<?php ',
     //TODO include again, now excluded because of "memcpy - blocks overlap" file_get_contents(__DIR__ . '/assets/bininput.php')
+    //TODO write a valgrind supression file if needed
 );
 
 foreach($inputs as $input) {
