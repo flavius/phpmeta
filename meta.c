@@ -22,10 +22,6 @@
 #include "ext/standard/php_var.h"
 #include "php_meta.h"
 #include "scanner.h"
-#include "meta_scanner.h"
-#include "scanner_API.h"
-#include "meta_parser.h"
-#include "parser_API.h"
 #include "parser.h"
 #include <stdarg.h>
 
@@ -42,17 +38,12 @@ static function_entry php_meta_functions[] = {
 /* }}} */
 /* {{{ meta MINIT */
 PHP_MINIT_FUNCTION(meta) {
-    int status = SUCCESS;
-    status = meta_parser_init_function(INIT_FUNC_ARGS_PASSTHRU);
-    if(FAILURE == status) {
+    if(FAILURE == meta_parser_init_function(INIT_FUNC_ARGS_PASSTHRU)) {
         return FAILURE;
     }
-    /* TODO move the following scanner initialization into it's own function and call that instead */
-    meta_scanner_descriptor = zend_register_list_destructors_ex(
-            php_meta_scanner_dtor, NULL,
-            PHP_META_SCANNER_DESCRIPTOR_RES_NAME, module_number);
-    zend_register_long_constant("META_SFLAG_SHORT_OPEN_TAG", sizeof("META_SFLAG_SHORT_OPEN_TAG"), SFLAG_SHORT_OPEN_TAG, CONST_CS|CONST_PERSISTENT, module_number TSRMLS_CC);
-    /* end scanner "initialization" (not yet complete) */
+	if(FAILURE == meta_scanner_init_function(INIT_FUNC_ARGS_PASSTHRU)) {
+		return FAILURE;
+	}
     return SUCCESS;
 }
 /* }}} */

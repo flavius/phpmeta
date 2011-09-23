@@ -25,6 +25,7 @@
 #define PHP_META_SCANNER_DESCRIPTOR_RES_NAME "Meta Scanner"
 extern int meta_scanner_descriptor;
 
+int meta_scanner_init_function(INIT_FUNC_ARGS);
 PHP_FUNCTION(meta_scanner_init);
 PHP_FUNCTION(meta_scanner_get);
 PHP_FUNCTION(meta_scanner_token_name);
