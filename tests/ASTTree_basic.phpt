@@ -11,7 +11,7 @@ var_dump((string)$tree);
 --EXPECT--
 object(ASTTree)#1 (8) {
   ["root":protected]=>
-  NULL
+  *RECURSION*
   ["parent":protected]=>
   NULL
   ["index":protected]=>

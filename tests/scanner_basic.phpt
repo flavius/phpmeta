@@ -1,13 +1,9 @@
 --TEST--
-tokenize a simple PHP source code
+Tokenize a simple PHP source code
 --CREDITS--
-Flavius Aspra <flavius.as@gmail.com>
+Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
-$inputs = array(
-    'hello world',
-);
-
 $input = 'hello world';
 $scanner = meta_scanner_init($input, 0);
 var_dump($input);

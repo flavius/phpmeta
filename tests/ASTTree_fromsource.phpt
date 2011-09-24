@@ -1,7 +1,7 @@
 --TEST--
 Construct an ASTTree from a given PHP source code
 --CREDITS--
-Flavius Aspra <flavius.as@gmail.com>
+Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
 //$src = "<?php 42";
@@ -16,7 +16,7 @@ var_dump((string)$tree);
 string(0) ""
 object(ASTTree)#1 (8) {
   ["root":protected]=>
-  NULL
+  *RECURSION*
   ["parent":protected]=>
   NULL
   ["index":protected]=>

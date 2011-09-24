@@ -1,7 +1,7 @@
 --TEST--
 Construct a simple ASTBinaryNode inside a simple tree programmatically
 --CREDITS--
-Flavius Aspra <flavius.as@gmail.com>
+Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
 $tree = new ASTTree(0);
@@ -15,7 +15,7 @@ var_dump((string)$tree);
 --EXPECT--
 object(ASTTree)#1 (8) {
   ["root":protected]=>
-  NULL
+  *RECURSION*
   ["parent":protected]=>
   NULL
   ["index":protected]=>

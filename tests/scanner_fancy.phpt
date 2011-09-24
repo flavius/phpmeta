@@ -1,7 +1,7 @@
 --TEST--
 Tokenize some common edge cases
 --CREDITS--
-Flavius Aspra <flavius.as@gmail.com>
+Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
 $inputs = array(
