@@ -339,7 +339,6 @@ static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
 /* }}} */
 /* {{{ proto public void ASTTree::__construct(int $flags [,mixed $source])
  * Construct the root of the tree */
-/* TODO: it could be useful to set root = getThis(), so we can use the nodelist' find() method (when/if it will be implemented) */
 PHP_METHOD(ASTTree, __construct) {
 	zval *obj;
 	long flags;
@@ -359,6 +358,7 @@ PHP_METHOD(ASTTree, __construct) {
 	if(source) {
 		META_UP_PROP(tree, obj, "source", source);
 	}
+	META_UP_PROP(tree, obj, "root", obj);
 }
 /* }}} */
 /* {{{ proto public string ASTTree::__toString()
