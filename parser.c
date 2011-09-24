@@ -18,6 +18,7 @@
 
 #include <zend.h>
 #include <zend_interfaces.h>
+#include <zend_operators.h>
 #include <php.h>
 #include <standard/php_string.h>
 #include "meta_parser.h" /* for T_ terminal definitions */
@@ -119,10 +120,11 @@ PHP_METHOD(ASTNode, setIndex) {
 	obj = getThis();
 	parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(IS_NULL == Z_TYPE_P(parent)) {
-		/* TODO error "cannot set index without a parent", return */
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Cannot set index without a parent");
+		return;
 	}
 	else {
-		/* check if index is valid, call parent perhaps? */
+		/* TODO check if index is valid, call parent perhaps? */
 	}
 	META_UP_PROP_L(node, obj, "index", index);
 }
@@ -131,13 +133,20 @@ PHP_METHOD(ASTNode, setIndex) {
  * Set the parent, an ASTNode or ASTNodeList */
 PHP_METHOD(ASTNode, setParent) {
 	zval *obj, *parent, *old_parent;
+	zend_class_entry *parent_ce;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
 				&parent)) {
 		WRONG_PARAM_COUNT;
 	}
+	parent_ce = Z_OBJCE_P(parent);
+	if(!instanceof_function(META_CLASS(node), parent_ce TSRMLS_CC) && !instanceof_function(META_CLASS(nodelist), parent_ce TSRMLS_CC)) {
+		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
+	}
+
 	obj = getThis();
-	/* TODO check class of parent, or could this be done by the engine via arginfo? */
+
 	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(old_parent != parent) {
 		if(IS_NULL != Z_TYPE_P(old_parent)) {
@@ -157,9 +166,7 @@ ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setindex, 0, 0, 1)
 	ZEND_ARG_INFO(0, index)
 ZEND_END_ARG_INFO()
-/* TODO how to specify a list of allowed classes? ASTNodeList and ASTNode in this case */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, parent, ASTNodeList, 0)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astnode_functions[] = {
@@ -343,7 +350,10 @@ PHP_METHOD(ASTTree, __construct) {
 				&flags, &source)) {
 		WRONG_PARAM_COUNT;
 	}
-	/* TODO: if source not string or stream, then fail */
+	if(NULL != source && (IS_STRING != Z_TYPE_P(source) /* || is stream */)) {
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "The source is not a string or a stream");
+		return;
+	}
 	obj = getThis();
 	META_UP_PROP_L(tree, obj, "flags", flags);
 	if(source) {
@@ -356,7 +366,6 @@ PHP_METHOD(ASTTree, __construct) {
  * For now, it just inherits ASTNodeList, but what about encodings, BOM and the like? */
 /* }}} */
 /* {{{ proto public void ASTTree::setFlags(int $flags) */
-/* TODO: drop this? */
 PHP_METHOD(ASTTree, setFlags) {
 	zval *obj;
 	long flags;

@@ -179,14 +179,14 @@ META_API zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend
             object_init_ex(obj, ce);
         }
         else {
-            php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot create an object in %s:%d", __FILE__, __LINE__);
+            php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot create an object");
             native_null = 1;
             goto clean_params;
         }
     }
 
     if(FAILURE == zend_call_function(&fci, &fcc TSRMLS_CC)) {
-        php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot call %s::%s in %s:%d", ce->name, func->common.function_name, __FILE__, __LINE__);
+        php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Cannot call %s::%s", ce->name, func->common.function_name);
         if(NULL != retval_ptr) {
             zval_ptr_dtor(&retval_ptr);
         }
@@ -204,15 +204,17 @@ clean_params:
         zval_ptr_dtor(&retval_ptr);
         retval_ptr = fci.object_ptr;
     }
-    if(native_null) {
-        if(NULL != retval_ptr && IS_NULL == Z_TYPE_P(retval_ptr)) {
-            zval_ptr_dtor(&retval_ptr);
-            retval_ptr = NULL;
-        }
-        else {
-            php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "The call %s::%s() does not return NULL as expected in %s:%d", ce->name, func->common.function_name, __FILE__, __LINE__);
-        }
-    }
+	else {
+		if(native_null) {
+			if(NULL != retval_ptr && IS_NULL == Z_TYPE_P(retval_ptr)) {
+				zval_ptr_dtor(&retval_ptr);
+				retval_ptr = NULL;
+			}
+			else {
+				php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "The call %s::%s() does not return NULL as expected", ce->name, func->common.function_name);
+			}
+		}
+	}
     return retval_ptr;
 }
 /* }}} */
