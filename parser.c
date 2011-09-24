@@ -236,8 +236,8 @@ PHP_METHOD(ASTNodeList, __toString) {
 	zval_ptr_dtor(&delim);
 }
 /* }}} */
-/* {{{ proto public void ASTNode::setParent(mixed $parent)
- * Set the parent, an ASTNode or ASTNodeList */
+/* {{{ proto public void ASTNodeList::setParent(mixed $parent)
+ * Set the parent, an ASTNodeList or ASTNodeList */
 PHP_METHOD(ASTNodeList, setParent) {
 	zval *obj, *parent, *old_parent;
 	zend_class_entry *parent_ce;
