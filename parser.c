@@ -236,6 +236,34 @@ PHP_METHOD(ASTNodeList, __toString) {
 	zval_ptr_dtor(&delim);
 }
 /* }}} */
+/* {{{ proto public void ASTNode::setParent(mixed $parent)
+ * Set the parent, an ASTNode or ASTNodeList */
+PHP_METHOD(ASTNodeList, setParent) {
+	zval *obj, *parent, *old_parent;
+	zend_class_entry *parent_ce;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+				&parent)) {
+		WRONG_PARAM_COUNT;
+	}
+	parent_ce = Z_OBJCE_P(parent);
+	if(!instanceof_function(META_CLASS(node), parent_ce TSRMLS_CC) && !instanceof_function(META_CLASS(nodelist), parent_ce TSRMLS_CC)) {
+		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
+	}
+
+	obj = getThis();
+
+	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	if(old_parent != parent) {
+		if(IS_NULL != Z_TYPE_P(old_parent)) {
+			/* TODO detach from old parent, if different */
+		}
+		/* TODO notify the parent? */
+		META_UP_PROP(node, obj, "parent", parent);
+	}
+}
+/* }}} */
 /* {{{ proto public void ASTNodeList::appendChild(mixed $node) */
 PHP_METHOD(ASTNodeList, appendChild) {
 	zval *obj, *children, *child;
