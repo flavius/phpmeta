@@ -23,6 +23,9 @@
 #include "scanner_API.h"
 #include "meta_parser.h"
 
+int meta_scanner_descriptor;
+/* {{{ create and initialize scanner-related resources
+ */
 int meta_scanner_init_function(INIT_FUNC_ARGS) {
 	/* TODO: more checking, more constants registered, etc */
     meta_scanner_descriptor = zend_register_list_destructors_ex(
@@ -31,8 +34,7 @@ int meta_scanner_init_function(INIT_FUNC_ARGS) {
     zend_register_long_constant("META_SFLAG_SHORT_OPEN_TAG", sizeof("META_SFLAG_SHORT_OPEN_TAG"), SFLAG_SHORT_OPEN_TAG, CONST_CS|CONST_PERSISTENT, module_number TSRMLS_CC);
 	return SUCCESS;
 }
-
-int meta_scanner_descriptor;
+/* }}} */
 /* {{{ proto scanner_handle meta_scanner_init(string $src, int $flags)
  * Create a new scanner which will scan the provided input */
 PHP_FUNCTION(meta_scanner_init) {
@@ -71,7 +73,6 @@ PHP_FUNCTION(meta_scanner_get) {
     //meta_token_dtor(&token, 0);
 }
 /* }}} */
-
 /* {{{ proto void meta_scanner_reset(scanner_handle $handle)
  * reset the state of the scanner, prepare for starting over */
 PHP_FUNCTION(meta_scanner_reset) {
@@ -93,7 +94,6 @@ PHP_FUNCTION(meta_scanner_token_name) {
  * destroy all the internal data attached to the scanner */
 META_API void php_meta_scanner_dtor(zend_rsrc_list_entry *rsrc TSRMLS_DC) {
     meta_scanner *scanner = (meta_scanner*)rsrc->ptr;
-	//zval_ptr_dtor(&scanner->rawsrc);
     meta_scanner_free(&scanner);
 }
 /* }}} */
