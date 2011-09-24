@@ -135,14 +135,15 @@ PHP_METHOD(ASTNode, setParent) {
 	zval *obj, *parent, *old_parent;
 	zend_class_entry *parent_ce;
 
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
 				&parent)) {
 		WRONG_PARAM_COUNT;
 	}
 	parent_ce = Z_OBJCE_P(parent);
-	if(!instanceof_function(META_CLASS(node), parent_ce TSRMLS_CC) && !instanceof_function(META_CLASS(nodelist), parent_ce TSRMLS_CC)) {
+	if(!(instanceof_function(parent_ce, META_CLASS(node) TSRMLS_CC) || instanceof_function(parent_ce, META_CLASS(nodelist) TSRMLS_CC))) {
 		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
-		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node %d", __LINE__);
+		return;
 	}
 
 	obj = getThis();
@@ -154,6 +155,7 @@ PHP_METHOD(ASTNode, setParent) {
 		}
 		/* TODO notify the parent? */
 		META_UP_PROP(node, obj, "parent", parent);
+		Z_ADDREF_P(parent);
 	}
 }
 /* }}} */
@@ -242,25 +244,27 @@ PHP_METHOD(ASTNodeList, setParent) {
 	zval *obj, *parent, *old_parent;
 	zend_class_entry *parent_ce;
 
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
 				&parent)) {
 		WRONG_PARAM_COUNT;
 	}
 	parent_ce = Z_OBJCE_P(parent);
-	if(!instanceof_function(META_CLASS(node), parent_ce TSRMLS_CC) && !instanceof_function(META_CLASS(nodelist), parent_ce TSRMLS_CC)) {
+	if(!(instanceof_function(parent_ce, META_CLASS(node) TSRMLS_CC) || instanceof_function(parent_ce, META_CLASS(nodelist) TSRMLS_CC))) {
 		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
-		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node %d", __LINE__);
+		return;
 	}
 
 	obj = getThis();
 
-	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	old_parent = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(old_parent != parent) {
 		if(IS_NULL != Z_TYPE_P(old_parent)) {
 			/* TODO detach from old parent, if different */
 		}
 		/* TODO notify the parent? */
-		META_UP_PROP(node, obj, "parent", parent);
+		META_UP_PROP(nodelist, obj, "parent", parent);
+		Z_ADDREF_P(parent);
 	}
 }
 /* }}} */
@@ -276,6 +280,20 @@ PHP_METHOD(ASTNodeList, appendChild) {
 	obj = getThis();
 	children = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
 	add_next_index_zval(children, child);
+	if(IS_OBJECT == Z_TYPE_P(child)) { /* TODO actually check for a marker interface */
+		zend_class_entry *child_ce;
+		zend_function *setparent=NULL;
+		zval *retval;
+		child_ce = Z_OBJCE_P(child);
+		if(FAILURE == zend_hash_find(&child_ce->function_table, STRL_PAIR("setparent"), (void**)&setparent)) {
+			php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Child does not have a setParent method");
+			return;
+		}
+		retval = obj_call_method_internal_ex(child, child_ce, setparent, EG(scope), 1 TSRMLS_CC, "z", obj);
+		if(NULL != retval) {
+			zval_ptr_dtor(&retval);
+		}
+	}
 }
 /* }}} */
 /* {{{ proto public bool ASTNodeList::hasChildren() */
@@ -305,6 +323,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_construct, 0, 0, 1)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setparent, 0, 0, 1)
+ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_appendchild, 0, 0, 1)
 	ZEND_ARG_INFO(0, node)
 ZEND_END_ARG_INFO()
@@ -318,6 +338,7 @@ ZEND_END_ARG_INFO()
 static const function_entry php_meta_astnodelist_functions[] = {
     PHP_ME(ASTNodeList, __construct,		arginfo_nodelist_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, __toString,			arginfo_nodelist_tostring, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, setParent,		arginfo_nodelist_setparent, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, appendChild,		arginfo_nodelist_appendchild, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, hasChildren,		arginfo_nodelist_haschildren, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, setLines,			arginfo_nodelist_setlines, ZEND_ACC_PUBLIC)

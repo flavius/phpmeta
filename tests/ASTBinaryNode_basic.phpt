@@ -33,7 +33,7 @@ object(ASTTree)#1 (8) {
       ["root":protected]=>
       *RECURSION*
       ["parent":protected]=>
-      NULL
+      *RECURSION*
       ["index":protected]=>
       NULL
       ["start_line":protected]=>
