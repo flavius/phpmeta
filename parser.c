@@ -30,10 +30,10 @@
 /* {{{ create and initialize internal classes
  */
 int meta_parser_init_function(INIT_FUNC_ARGS) {
-    zend_class_entry ce;
+	zend_class_entry ce;
 
-    INIT_CLASS_ENTRY(ce, PHP_META_ASTNODE_CE_NAME, php_meta_astnode_functions);
-    META_CLASS(node) = zend_register_internal_class(&ce TSRMLS_CC);
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODE_CE_NAME, php_meta_astnode_functions);
+	META_CLASS(node) = zend_register_internal_class(&ce TSRMLS_CC);
 	META_CLASS(node)->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
 	META_PROP_ZERO(node, "type", PROTECTED);
 	META_PROP_NULL(node, "root", PROTECTED);
@@ -84,10 +84,10 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(ternarynode, "true", PROTECTED);
 	META_PROP_NULL(ternarynode, "false", PROTECTED);
 
-    /* TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it) */
+	/* TODO register terminals and nonterminals numeric constants and names, from meta_parser_defs.h (write script for it) */
 	/* TODO register symbolic constants for flags */
 
-    return SUCCESS;
+	return SUCCESS;
 }
 /* }}} */
 /* {{{ abstract class ASTNode
@@ -99,7 +99,7 @@ PHP_METHOD(ASTNode, setLines) {
 	zval *obj;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll",
-				&start, &end)) {
+	                                    &start, &end)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -114,7 +114,7 @@ PHP_METHOD(ASTNode, setIndex) {
 	long index;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l",
-				&index)) {
+	                                    &index)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -136,7 +136,7 @@ PHP_METHOD(ASTNode, setParent) {
 	zend_class_entry *parent_ce;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
-				&parent)) {
+	                                    &parent)) {
 		WRONG_PARAM_COUNT;
 	}
 	parent_ce = Z_OBJCE_P(parent);
@@ -172,10 +172,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astnode_functions[] = {
-    PHP_ME(ASTNode, setLines,			arginfo_node_setlines, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, setIndex,			arginfo_node_setindex, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTNode, setParent,			arginfo_node_setparent, ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+	PHP_ME(ASTNode, setLines,			arginfo_node_setlines, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, setIndex,			arginfo_node_setindex, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, setParent,			arginfo_node_setparent, ZEND_ACC_PUBLIC)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
 /* }}} */
@@ -220,7 +220,7 @@ PHP_METHOD(ASTNodeList, __construct) {
 	zval *obj, *root;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O",
-				&root, META_CLASS(tree))) {
+	                                    &root, META_CLASS(tree))) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -245,7 +245,7 @@ PHP_METHOD(ASTNodeList, setParent) {
 	zend_class_entry *parent_ce;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
-				&parent)) {
+	                                    &parent)) {
 		WRONG_PARAM_COUNT;
 	}
 	parent_ce = Z_OBJCE_P(parent);
@@ -273,7 +273,7 @@ PHP_METHOD(ASTNodeList, appendChild) {
 	zval *obj, *children, *child;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&child)) {
+	                                    &child)) {
 		WRONG_PARAM_COUNT;
 	}
 	Z_ADDREF_P(child);
@@ -309,7 +309,7 @@ PHP_METHOD(ASTNodeList, setLines) {
 	zval *obj;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ll",
-				&start, &end)) {
+	                                    &start, &end)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -319,7 +319,7 @@ PHP_METHOD(ASTNodeList, setLines) {
 /* }}} */
 /* {{{ ASTNodeList methods */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_construct, 0, 0, 1)
-	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -336,13 +336,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setlines, 0, 0, 2)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astnodelist_functions[] = {
-    PHP_ME(ASTNodeList, __construct,		arginfo_nodelist_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, __construct,		arginfo_nodelist_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, __toString,			arginfo_nodelist_tostring, ZEND_ACC_PUBLIC)
-	PHP_ME(ASTNodeList, setParent,		arginfo_nodelist_setparent, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, setParent,			arginfo_nodelist_setparent, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, appendChild,		arginfo_nodelist_appendchild, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, hasChildren,		arginfo_nodelist_haschildren, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, setLines,			arginfo_nodelist_setlines, ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
 /* }}} */
@@ -395,7 +395,7 @@ PHP_METHOD(ASTTree, __construct) {
 
 	source=NULL;
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|z",
-				&flags, &source)) {
+	                                    &flags, &source)) {
 		WRONG_PARAM_COUNT;
 	}
 	if(NULL != source && (IS_STRING != Z_TYPE_P(source) /* || is stream */)) {
@@ -420,7 +420,7 @@ PHP_METHOD(ASTTree, setFlags) {
 	long flags;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l",
-				&flags)) {
+	                                    &flags)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -439,7 +439,7 @@ PHP_METHOD(ASTTree, setSource) {
 	zval *obj, *source;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&source)) {
+	                                    &source)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -481,14 +481,14 @@ PHP_METHOD(ASTTree, parse) {
 		token = meta_scan(scanner TSRMLS_CC);
 		/* TODO check scanner->err_no */
 		major = TOKEN_MAJOR(token);
-        if(NULL == prev_token) {
-            prev_token = token;
-        }
-        else {
-            token->prev = prev_token;
-            prev_token->next = token;
-            prev_token = token;
-        }
+		if(NULL == prev_token) {
+			prev_token = token;
+		}
+		else {
+			token->prev = prev_token;
+			prev_token->next = token;
+			prev_token = token;
+		}
 		MetaParser(parser, major, token, obj);
 		if(major < 0) {
 			/* TODO error reporting */
@@ -529,7 +529,7 @@ static const function_entry php_meta_asttree_functions[] = {
 	PHP_ME(ASTTree, setFlags,			arginfo_tree_setflags, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTTree, getFlags,			arginfo_tree_getflags, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTTree, setSource,			arginfo_tree_setsource, ZEND_ACC_PUBLIC)
-	PHP_ME(ASTTree, parse,			arginfo_tree_parse, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTTree, parse,				arginfo_tree_parse, ZEND_ACC_PUBLIC)
 	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
@@ -581,7 +581,7 @@ PHP_METHOD(ASTUnaryNode, __construct) {
 	operand = NULL;
 	operator = NULL;
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lO|zz",
-				&type, &root, META_CLASS(tree), &operand, &operator)) {
+	                                    &type, &root, META_CLASS(tree), &operand, &operator)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -654,7 +654,7 @@ PHP_METHOD(ASTUnaryNode, appendBetween) {
 	zval *obj, *fill, *child;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&child)) {
+	                                    &child)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -667,7 +667,7 @@ PHP_METHOD(ASTUnaryNode, appendBetween) {
 /* {{{ ASTUnaryNode methods */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_construct, 0, 0, 2)
 	ZEND_ARG_INFO(0, type)
-	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -682,12 +682,12 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_appendbetween, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astunarynode_functions[] = {
-    PHP_ME(ASTUnaryNode, __construct,			arginfo_unarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
-    PHP_ME(ASTUnaryNode, __toString,			arginfo_unarynode_tostring, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTUnaryNode, setOperand,			arginfo_unarynode_setoperand, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTUnaryNode, setOpRepresentation,	arginfo_unarynode_setoprepresentation, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTUnaryNode, appendBetween,			arginfo_unarynode_appendbetween, ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+	PHP_ME(ASTUnaryNode, __construct,			arginfo_unarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTUnaryNode, __toString,			arginfo_unarynode_tostring, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTUnaryNode, setOperand,			arginfo_unarynode_setoperand, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTUnaryNode, setOpRepresentation,	arginfo_unarynode_setoprepresentation, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTUnaryNode, appendBetween,			arginfo_unarynode_appendbetween, ZEND_ACC_PUBLIC)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
 /* }}} */
@@ -744,7 +744,7 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 	rhs=NULL;
 	operator=NULL;
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lO|zzz",
-				&type, &root, META_CLASS(tree), &lhs, &rhs, &operator)) {
+	                                    &type, &root, META_CLASS(tree), &lhs, &rhs, &operator)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -797,20 +797,20 @@ PHP_METHOD(ASTBinaryNode, appendBetween) {
 	long where;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl",
-				&child, &where)) {
+	                                    &child, &where)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
 	switch(where) {
-		case 1:
-			fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_lhs_operator")-1, 0 TSRMLS_CC);
-			break;
-		case 2:
-			fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
-			break;
-		default:
-			/* TODO error: invalid place to append child to */
-			return;
+	case 1:
+		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_lhs_operator")-1, 0 TSRMLS_CC);
+		break;
+	case 2:
+		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
+		break;
+	default:
+		/* TODO error: invalid place to append child to */
+		return;
 	}
 	Z_ADDREF_P(child);
 	add_next_index_zval(fill, child);
@@ -822,7 +822,7 @@ PHP_METHOD(ASTBinaryNode, setLHS) {
 	zval *obj, *lhs;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&lhs)) {
+	                                    &lhs)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -837,7 +837,7 @@ PHP_METHOD(ASTBinaryNode, setOpRepresentation) {
 	zval *obj, *operator;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&operator)) {
+	                                    &operator)) {
 		WRONG_PARAM_COUNT;
 	}
 	/* TODO accept only string (?) */
@@ -850,7 +850,7 @@ PHP_METHOD(ASTBinaryNode, setRHS) {
 	zval *obj, *rhs;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-				&rhs)) {
+	                                    &rhs)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
@@ -860,7 +860,7 @@ PHP_METHOD(ASTBinaryNode, setRHS) {
 /* {{{ ASTBinaryNode methods */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_construct, 0, 0, 2)
 	ZEND_ARG_INFO(0, type)
-	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
@@ -879,13 +879,13 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_binarynode_setrhs, 0, 0, 1)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astbinarynode_functions[] = {
-    PHP_ME(ASTBinaryNode, __construct,			arginfo_binarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
+	PHP_ME(ASTBinaryNode, __construct,			arginfo_binarynode_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(ASTBinaryNode, __toString,			arginfo_binarynode_tostring, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTBinaryNode, appendBetween,		arginfo_binarynode_appendbetween, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTBinaryNode, setLHS,				arginfo_binarynode_setlhs, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTBinaryNode, setOpRepresentation,	arginfo_binarynode_setoprepresentation, ZEND_ACC_PUBLIC)
-    PHP_ME(ASTBinaryNode, setRHS,				arginfo_binarynode_setrhs, ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+	PHP_ME(ASTBinaryNode, appendBetween,		arginfo_binarynode_appendbetween, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTBinaryNode, setLHS,				arginfo_binarynode_setlhs, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTBinaryNode, setOpRepresentation,	arginfo_binarynode_setoprepresentation, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTBinaryNode, setRHS,				arginfo_binarynode_setrhs, ZEND_ACC_PUBLIC)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
 /* }}} */
@@ -899,7 +899,7 @@ PHP_METHOD(ASTTernaryNode, __construct) {
 /* {{{ ASTTernaryNode methods */
 static const function_entry php_meta_astternarynode_functions[] = {
 	PHP_ME(ASTTernaryNode, __construct, NULL, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
-    ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
 /* }}} */
