@@ -680,7 +680,7 @@ PHP_METHOD(ASTTree, parse) {
 			/* TODO error reporting */
 			break;
 		}
-		if(0 == major) {
+		else if(0 == major) {
 			efree(token);
 			break;
 		}
