@@ -81,6 +81,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(binarynode, "operator", PROTECTED);
 	META_PROP_NULL(binarynode, "between_lhs_operator", PROTECTED);
 	META_PROP_NULL(binarynode, "between_operator_rhs", PROTECTED);
+	META_PROP_NULL(binarynode, "after_rhs", PROTECTED);
 	memcpy(&binarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(binarynode)->create_object = create_object_binarynode;
 
@@ -890,8 +891,7 @@ static void meta_binarynode_dtor(void *object, zend_object_handle handle TSRMLS_
 	obj = object;
 	META_DECREF_HTITEM(obj, "*", "between_lhs_operator", property);
 	META_DECREF_HTITEM(obj, "*", "between_operator_rhs", property);
-	//META_DECREF_HTITEM(obj, "*", "root", property);
-	//call the destructor
+	META_DECREF_HTITEM(obj, "*", "after_rhs", property);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -909,6 +909,9 @@ static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC
 	MAKE_STD_ZVAL(property);
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "between_operator_rhs", property);
+	MAKE_STD_ZVAL(property);
+	array_init(property);
+	META_UPDATE_HPROPERTY(obj, "*", "after_rhs", property);
 
 	retval.handle = zend_objects_store_put(obj, meta_binarynode_dtor, meta_binarynode_free, NULL TSRMLS_CC);
 	retval.handlers = &binarynode_handlers;
@@ -987,6 +990,9 @@ PHP_METHOD(ASTBinaryNode, appendBetween) {
 		break;
 	case META_FILL_BINARY_OPERATOR_RHS:
 		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
+		break;
+	case META_FILL_BINARY_AFTER_RHS:
+		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("after_rhs")-1, 0 TSRMLS_CC);
 		break;
 	default:
 		/* TODO error: invalid place to append child to */
