@@ -143,7 +143,7 @@ static const function_entry php_meta_asttreeish_functions[] = {
 /* }}} */
 /* }}} */
 /* {{{ abstract class ASTNode
- * Base class for all nodes in the tree, except ASTNodeList (ans ASTTree) */
+ * Base class for all nodes in the tree, except ASTNodeList (and ASTTree) */
 /* {{{ proto public void ASTNode::setLines(int $start, int $end)
  * Set the lines across this node spreads out */
 PHP_METHOD(ASTNode, setLines) {
