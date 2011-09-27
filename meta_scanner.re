@@ -159,128 +159,131 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 		goto lex_end;
 	}
 
-	/*!re2c
-	re2c:define:YYDEBUG = DBG_SCANNER;
-	re2c:yyfill:check = 0;
-	LNUM    [0-9]+
-	DNUM    ([0-9]*"."[0-9]+)|([0-9]+"."[0-9]*)
-	EXPONENT_DNUM   (({LNUM}|{DNUM})[eE][+-]?{LNUM})
-	HNUM    "0x"[0-9a-fA-F]+
-	LABEL   [a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*
-	WHITESPACE [ \n\r\t]
-	NON_WS [^ \n\r\t]
-	TABS_AND_SPACES [ \t]
-	TOKENS [;:,.\[\]()|^&+-/*=%!~$<>?@]
-	ANY_CHAR [^]
-	EOI [\000]
-	NEWLINE ("\r"|"\n"|"\r\n")
-	PHP_START "<?php"
-	PHP_START_EX ("<?="|"<?"|"<%="|"<%")
-	PHP_STOP ("?>"|"%>")
-	*/
+/*!re2c
+re2c:define:YYDEBUG = DBG_SCANNER;
+re2c:yyfill:check = 0;
+LNUM    [0-9]+
+DNUM    ([0-9]*"."[0-9]+)|([0-9]+"."[0-9]*)
+EXPONENT_DNUM   (({LNUM}|{DNUM})[eE][+-]?{LNUM})
+HNUM    "0x"[0-9a-fA-F]+
+LABEL   [a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*
+WHITESPACE [ \n\r\t]
+NON_WS [^ \n\r\t]
+TABS_AND_SPACES [ \t]
+TOKENS [;:,.\[\]()|^&+-/*=%!~$<>?@]
+ANY_CHAR [^]
+EOI [\000]
+NEWLINE ("\r"|"\n"|"\r\n")
+PHP_START "<?php"
+PHP_START_EX ("<?="|"<?"|"<%="|"<%")
+PHP_STOP ("?>"|"%>")
+*/
 
 lex_start:
-	/*!re2c
-	<ST_INITIAL>{ANY_CHAR} {
-	    if(IS_EOL(YYCURSOR)) {
-	        scanner->line_no++;
-	    }
-	    if(YYCURSOR > YYLIMIT - YYMAXFILL) {
-	        TOKEN *outside, *eoi;
-	        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-	        eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
-	        TOKEN_PUSH(scanner, eoi);
-	        RETURN(outside);
-	    }
-	    else {
-	        yymore();
-	    }
-	}
+/*!re2c
+<ST_INITIAL>{ANY_CHAR} {
+    if(IS_EOL(YYCURSOR)) {
+        scanner->line_no++;
+    }
+    if(YYCURSOR > YYLIMIT - YYMAXFILL) {
+        TOKEN *outside, *eoi;
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+        eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
+        TOKEN_PUSH(scanner, eoi);
+        RETURN(outside);
+    }
+    else {
+        yymore();
+    }
+}
 
-	<ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
-	    TOKEN *open_tag;
-	    transient_delta = 5;
-	    transient_major = T_OPEN_TAG;
-	do_transient_start:
-	    SETSTATE(IN_SCRIPTING);
-	    open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta TSRMLS_CC);
-	    if(last_cursor == YYCURSOR - transient_delta) {
-	        RETURN(open_tag);
-	    }
-	    else {
-	        TOKEN* outside;
-	        TOKEN_PUSH(scanner, open_tag);
-	        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2 TSRMLS_CC);
-	        RETURN(outside);
-	    }
-	}
+<ST_INITIAL>{PHP_START}/{WHITESPACE}|{EOI} {
+    TOKEN *open_tag;
+    transient_delta = 5;
+    transient_major = T_OPEN_TAG;
+do_transient_start:
+    SETSTATE(IN_SCRIPTING);
+    open_tag = ast_token_ctor(scanner, transient_major, YYCURSOR - transient_delta, transient_delta TSRMLS_CC);
+    if(last_cursor == YYCURSOR - transient_delta) {
+        RETURN(open_tag);
+    }
+    else {
+        TOKEN* outside;
+        TOKEN_PUSH(scanner, open_tag);
+        outside = ast_token_ctor(scanner, T_OUTSIDE_SCRIPTING, last_cursor, YYMARKER - last_cursor - 2 TSRMLS_CC);
+        RETURN(outside);
+    }
+}
 
-	<ST_INITIAL>{PHP_START_EX} {
-	    transient_delta = 2;
-	    transient_major = T_OPEN_TAG;
-	    if('=' == *(YYCURSOR-1)) {
-	        transient_delta++;
-	        transient_major = T_OPEN_TAG_WITH_ECHO;
-	    }
-	    if( (HAS_FLAG(scanner, SHORT_OPEN_TAG) && '?' == *(YYCURSOR - transient_delta + 1)) ||
-	        (HAS_FLAG(scanner, ASP_TAGS) && '%' == *(YYCURSOR - transient_delta + 1)) ) {
-	            goto do_transient_start;
-	    }
-	    else {
-	        yymore();
-	    }
-	}
-	<ST_IN_SCRIPTING>{PHP_STOP} {
-	    TOKEN *stop;
-	    SETSTATE(INITIAL);
-	    stop = ast_token_ctor(scanner, T_CLOSE_TAG, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-	    RETURN(stop);
-	}
-	<ST_IN_SCRIPTING>{EOI} {
-	    TOKEN *eoi;
-	    eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
-	    RETURN(eoi);
-	}
+<ST_INITIAL>{PHP_START_EX} {
+    transient_delta = 2;
+    transient_major = T_OPEN_TAG;
+    if('=' == *(YYCURSOR-1)) {
+        transient_delta++;
+        transient_major = T_OPEN_TAG_WITH_ECHO;
+    }
+    if( (HAS_FLAG(scanner, SHORT_OPEN_TAG) && '?' == *(YYCURSOR - transient_delta + 1)) ||
+        (HAS_FLAG(scanner, ASP_TAGS) && '%' == *(YYCURSOR - transient_delta + 1)) ) {
+            goto do_transient_start;
+    }
+    else {
+        yymore();
+    }
+}
+<ST_IN_SCRIPTING>{PHP_STOP} {
+    TOKEN *stop;
+    SETSTATE(INITIAL);
+    stop = ast_token_ctor(scanner, T_CLOSE_TAG, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    RETURN(stop);
+}
+<ST_IN_SCRIPTING>{EOI} {
+    TOKEN *eoi;
+    eoi = ast_token_ctor(scanner, 0, NULL, 0 TSRMLS_CC);
+    RETURN(eoi);
+}
 
-	<ST_IN_SCRIPTING>{WHITESPACE}/{NON_WS} {
-	    TOKEN *ws;
-	    ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-	    if(IS_EOL(YYCURSOR-1)) {
-	        scanner->line_no++;
-	    }
-	    RETURN(ws);
-	}
-	<ST_IN_SCRIPTING>{WHITESPACE}/{WHITESPACE}{
-	    if(IS_EOL(YYCURSOR)) {
-	        scanner->line_no++;
-	    }
-	    yymore();
-	}
-	/* ***** "top" tokens ***** */
-	<ST_IN_SCRIPTING> {LNUM} {
-		TOKEN* num;
-		num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-		RETURN(num);
-	}
-	<ST_IN_SCRIPTING>"+" {
-		TOKEN *plus;
-		plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
-		RETURN(plus);
-	}
-	<ST_IN_SCRIPTING>";" {
-		/* TODO */
-	}
-	/*
+<ST_IN_SCRIPTING>{WHITESPACE}/{NON_WS} {
+    TOKEN *ws;
+    ws = ast_token_ctor(scanner, T_WHITESPACE, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    if(IS_EOL(YYCURSOR-1)) {
+        scanner->line_no++;
+    }
+    TOKEN_IS_DISPENSABLE(ws) = 1;
+    RETURN(ws);
+}
+<ST_IN_SCRIPTING>{WHITESPACE}/{WHITESPACE}{
+    if(IS_EOL(YYCURSOR)) {
+        scanner->line_no++;
+    }
+    yymore();
+}
+/* ***** "top" tokens ***** */
+<ST_IN_SCRIPTING> {LNUM} {
+    TOKEN* num;
+    num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    RETURN(num);
+}
+<ST_IN_SCRIPTING>"+" {
+    TOKEN *plus;
+    plus = ast_token_ctor(scanner, T_PLUS, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    RETURN(plus);
+}
+<ST_IN_SCRIPTING>";" {
+    TOKEN *semicolon;
+    semicolon = ast_token_ctor(scanner, T_SEMICOLON, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    RETURN(semicolon);
+}
+/*
 
-	these could be merged
-	<ST_IN_SCRIPTING>{TABS_AND_SPACES}+
-	<ST_IN_SCRIPTING>{NEWLINE}
+these could be merged
+<ST_IN_SCRIPTING>{TABS_AND_SPACES}+
+<ST_IN_SCRIPTING>{NEWLINE}
 
-	TODO states:
-	ST_BACKQUOTE ST_DOUBLE_QUOTES ST_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET ST_LOOKING_FOR_PROPERTY ST_LOOKING_FOR_VARNAME
-	*/
+TODO states:
+ST_BACKQUOTE ST_DOUBLE_QUOTES ST_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET ST_LOOKING_FOR_PROPERTY ST_LOOKING_FOR_VARNAME
+*/
 
-	*/
+*/
 lex_end:
 	if(!token->start_line) {
 		token->start_line = last_line_no;
