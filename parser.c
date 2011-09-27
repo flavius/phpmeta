@@ -672,6 +672,9 @@ PHP_METHOD(ASTTree, parse) {
 			prev_token->next = token;
 			prev_token = token;
 		}
+		if(TOKEN_IS_DISPENSABLE(token)) {
+			continue;
+		}
 		MetaParser(parser, major, token, obj);
 		if(major < 0) {
 			/* TODO error reporting */
