@@ -68,6 +68,28 @@
 #define DBG(fmt, args...)
 #endif
 
+#define META_PARSER_REV_FILL(upto, start, class, obj, where) do { TOKEN* cursor; cursor = start; \
+        while(upto != cursor->prev) { cursor = cursor->prev; } \
+        while(cursor != start) { \
+            META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+            cursor = cursor->next; \
+            efree(cursor->prev); \
+        } \
+    } while(0)
+
+#define META_PARSER_FW_FILL(upto, start, class, obj, where) do { \
+        if(upto != start->next) { \
+            TOKEN *cursor, *prev; \
+            cursor = start->next; \
+            while(upto != cursor) { \
+                META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+                prev = cursor; \
+                cursor = cursor->next; \
+                efree(prev); \
+            } \
+        } \
+    } while(0)
+
 }
 %name MetaParser
 %start_symbol start
@@ -196,6 +218,7 @@
 %type top_stmt_list {zval*}
 %type top_stmt {zval*}
 %type expr {zval*}
+%type stmt_with_semicolon{zval*}
 
 start(A) ::=  processing(B) . {
 	/* A B */
@@ -218,6 +241,7 @@ processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	zval *end_line;
+
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
 	end_line = META_PROP(nodelist, C, "end_line");
@@ -225,6 +249,7 @@ processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
 	/*TODO apend all children between B and C, ensuring there's at least one space*/
 	/*TODO take tree's flags into consideration*/
+    META_PARSER_FW_FILL(NULL, B, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
 	if(NULL != B->next) {
 		TOKEN *cursor, *prev;
 		cursor = B->next;
@@ -258,13 +283,19 @@ top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
 	/* A B C */
 }
 
-top_stmt(A) ::= expr(B) . {
-	A = B;
+top_stmt(A) ::= stmt_with_semicolon(B) . {
+    A = B; // C
+}
+
+stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
+    A = B; // C
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
-	Z_ADDREF_P(tree);
+	Z_ADDREF_P(tree); // C
 	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
+    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_BINARY_LHS_OPERATOR);
+    META_PARSER_FW_FILL(NULL, C, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
 	efree(C);
 }
 

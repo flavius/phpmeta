@@ -973,21 +973,19 @@ PHP_METHOD(ASTBinaryNode, __toString) {
 /* }}} */
 /* {{{ proto public void ASTBinaryNode::appendBetween($child, $where)
  * Append $child to the filling area $where. */
-/* TODO introduce symbolic names for the areas BETWEEN_LHS_OPERATOR=1, BETWEEN_OPERATOR_RHS=2 */
 PHP_METHOD(ASTBinaryNode, appendBetween) {
 	zval *obj, *fill, *child;
 	long where;
 
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl",
-	                                    &child, &where)) {
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &child, &where)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
 	switch(where) {
-	case 1:
+	case META_FILL_BINARY_LHS_OPERATOR:
 		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_lhs_operator")-1, 0 TSRMLS_CC);
 		break;
-	case 2:
+	case META_FILL_BINARY_OPERATOR_RHS:
 		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
 		break;
 	default:
