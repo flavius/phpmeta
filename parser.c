@@ -32,6 +32,10 @@
 int meta_parser_init_function(INIT_FUNC_ARGS) {
 	zend_class_entry ce;
 
+	INIT_CLASS_ENTRY(ce, PHP_META_ASTTREEISH_CE_NAME, php_meta_asttreeish_functions);
+	META_CLASS(treeish) = zend_register_internal_class(&ce TSRMLS_CC);
+	META_CLASS(treeish)->ce_flags |= ZEND_ACC_INTERFACE;
+
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODE_CE_NAME, php_meta_astnode_functions);
 	META_CLASS(node) = zend_register_internal_class(&ce TSRMLS_CC);
 	META_CLASS(node)->ce_flags |= ZEND_ACC_EXPLICIT_ABSTRACT_CLASS;
@@ -41,6 +45,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(node, "index", PROTECTED);
 	META_PROP_ZERO(node, "start_line", PROTECTED);
 	META_PROP_ZERO(node, "end_line", PROTECTED);
+	zend_class_implements(META_CLASS(node) TSRMLS_CC, 1, META_CLASS(treeish));
 
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODELIST_CE_NAME, php_meta_astnodelist_functions);
 	META_CLASS(nodelist) = zend_register_internal_class(&ce TSRMLS_CC);
@@ -52,6 +57,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(nodelist, "children", PROTECTED);
 	memcpy(&nodelist_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(nodelist)->create_object = create_object_nodelist;
+	zend_class_implements(META_CLASS(nodelist) TSRMLS_CC, 1, META_CLASS(treeish)); /* TODO subtree instead of treeish */
 
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTTREE_CE_NAME, php_meta_asttree_functions);
 	META_CLASS(tree) = zend_register_internal_class_ex(&ce, META_CLASS(nodelist), PHP_META_ASTNODELIST_CE_NAME TSRMLS_CC);
@@ -90,6 +96,52 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	return SUCCESS;
 }
 /* }}} */
+/* {{{ interface Treeish */
+/* {{{ proto public void Treeish::setRoot(ASTTree $root) */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ proto public ASTTree Treeish::getRoot() */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ proto public void Treeish::setParent(Treeish $node) */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ proto public Treeish Treeish::getParent() */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ proto public void Treeish::setIndex(int $index) */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ proto public int Treeish::getIndex() */
+/* no implementation, just an interface */
+/* }}} */
+/* {{{ Treeish methods */
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_setroot, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, root, ASTTree, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_getroot, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_setparent, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, parent, Treeish, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_getparent, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_setindex, 0, 0, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_treeish_getindex, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+static const function_entry php_meta_asttreeish_functions[] = {
+	PHP_ABSTRACT_ME(Treeish, setRoot,			arginfo_treeish_setroot)
+	PHP_ABSTRACT_ME(Treeish, getRoot,			arginfo_treeish_getroot)
+	PHP_ABSTRACT_ME(Treeish, setParent,			arginfo_treeish_setparent)
+	PHP_ABSTRACT_ME(Treeish, getParent,			arginfo_treeish_getparent)
+	PHP_ABSTRACT_ME(Treeish, setIndex,			arginfo_treeish_setindex)
+	PHP_ABSTRACT_ME(Treeish, getIndex,			arginfo_treeish_getindex)
+	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
+};
+/* }}} */
+/* }}} */
 /* {{{ abstract class ASTNode
  * Base class for all nodes in the tree, except ASTNodeList (ans ASTTree) */
 /* {{{ proto public void ASTNode::setLines(int $start, int $end)
@@ -105,6 +157,65 @@ PHP_METHOD(ASTNode, setLines) {
 	obj = getThis();
 	META_UP_PROP_L(node, obj, "start_line", start);
 	META_UP_PROP_L(node, obj, "end_line", end);
+}
+/* }}} */
+/* {{{ proto public void ASTNode::setRoot(ASTTree $root)
+ * Set the tree to which this node belongs to */
+PHP_METHOD(ASTNode, setRoot) {
+	zval *obj, *root, *old_root;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &root, META_CLASS(tree))) {
+		WRONG_PARAM_COUNT;
+	}
+
+	obj = getThis();
+
+	old_root = zend_read_property(META_CLASS(node), obj, STRL_PAIR("root")-1, 0 TSRMLS_CC);
+	if(old_root != root) {
+		if(IS_NULL != Z_TYPE_P(old_root)) {
+			/* TODO detach from old root, if different */
+		}
+		/* TODO notify the root? */
+		META_UP_PROP(node, obj, "root", root);
+		Z_ADDREF_P(root);
+	}
+}
+/* }}} */
+/* {{{ proto public ASTTree ASTNode::getRoot() */
+PHP_METHOD(ASTNode, getRoot) {
+	zval *index;
+	index = zend_read_property(META_CLASS(node), getThis(), STRL_PAIR("index")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(index, 0, 1);
+}
+/* }}} */
+/* {{{ proto public void ASTNode::setParent(Treeish $parent)
+ * Set the parent */
+PHP_METHOD(ASTNode, setParent) {
+	zval *obj, *parent, *old_parent;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &parent, META_CLASS(treeish))) {
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
+		return;
+	}
+
+	obj = getThis();
+
+	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	if(old_parent != parent) {
+		if(IS_NULL != Z_TYPE_P(old_parent)) {
+			/* TODO detach from old parent, if different */
+		}
+		/* TODO notify the parent? */
+		META_UP_PROP(node, obj, "parent", parent);
+		Z_ADDREF_P(parent);
+	}
+}
+/* }}} */
+/* {{{ proto public Treeish ASTNode::getParent() */
+PHP_METHOD(ASTNode, getParent) {
+	zval *parent;
+	parent = zend_read_property(META_CLASS(node), getThis(), STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(parent, 0, 1);
 }
 /* }}} */
 /* {{{ proto public void ASTNode::setIndex(int index)
@@ -129,34 +240,11 @@ PHP_METHOD(ASTNode, setIndex) {
 	META_UP_PROP_L(node, obj, "index", index);
 }
 /* }}} */
-/* {{{ proto public void ASTNode::setParent(mixed $parent)
- * Set the parent, an ASTNode or ASTNodeList */
-PHP_METHOD(ASTNode, setParent) {
-	zval *obj, *parent, *old_parent;
-	zend_class_entry *parent_ce;
-
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
-	                                    &parent)) {
-		WRONG_PARAM_COUNT;
-	}
-	parent_ce = Z_OBJCE_P(parent);
-	if(!(instanceof_function(parent_ce, META_CLASS(node) TSRMLS_CC) || instanceof_function(parent_ce, META_CLASS(nodelist) TSRMLS_CC))) {
-		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
-		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node %d", __LINE__);
-		return;
-	}
-
-	obj = getThis();
-
-	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
-	if(old_parent != parent) {
-		if(IS_NULL != Z_TYPE_P(old_parent)) {
-			/* TODO detach from old parent, if different */
-		}
-		/* TODO notify the parent? */
-		META_UP_PROP(node, obj, "parent", parent);
-		Z_ADDREF_P(parent);
-	}
+/* {{{ proto public int ASTNode::getIndex() */
+PHP_METHOD(ASTNode, getIndex) {
+	zval *index;
+	index = zend_read_property(META_CLASS(node), getThis(), STRL_PAIR("index")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(index, 0, 1);
 }
 /* }}} */
 /* {{{ ASTNode methods
@@ -165,16 +253,36 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setlines, 0, 0, 2)
 	ZEND_ARG_INFO(0, start)
 	ZEND_ARG_INFO(0, end)
 ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setroot, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, root, ASTTree, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_getroot, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, parent, Treeish, 1)
+ZEND_END_ARG_INFO()
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_getparent, 0, 0, 0)
+ZEND_END_ARG_INFO()
+
 ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setindex, 0, 0, 1)
 	ZEND_ARG_INFO(0, index)
 ZEND_END_ARG_INFO()
-ZEND_BEGIN_ARG_INFO_EX(arginfo_node_setparent, 0, 0, 1)
+
+ZEND_BEGIN_ARG_INFO_EX(arginfo_node_getindex, 0, 0, 0)
 ZEND_END_ARG_INFO()
 
 static const function_entry php_meta_astnode_functions[] = {
 	PHP_ME(ASTNode, setLines,			arginfo_node_setlines, ZEND_ACC_PUBLIC)
-	PHP_ME(ASTNode, setIndex,			arginfo_node_setindex, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, setRoot,			arginfo_node_setroot, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, getRoot,			arginfo_node_getroot, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNode, setParent,			arginfo_node_setparent, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, getParent,			arginfo_node_getparent, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, setIndex,			arginfo_node_setindex, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNode, getIndex,			arginfo_node_getindex, ZEND_ACC_PUBLIC)
 	ZEND_RAW_FENTRY(NULL, NULL, NULL, 0)
 };
 /* }}} */
@@ -238,20 +346,42 @@ PHP_METHOD(ASTNodeList, __toString) {
 	zval_ptr_dtor(&delim);
 }
 /* }}} */
-/* {{{ proto public void ASTNodeList::setParent(mixed $parent)
+/* {{{ proto public void ASTNodeList::setRoot(ASTTree $root)
+ * Set the tree to which this nodelist belongs to */
+PHP_METHOD(ASTNodeList, setRoot) {
+	zval *obj, *root, *old_root;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &root, META_CLASS(tree))) {
+		WRONG_PARAM_COUNT;
+	}
+
+	obj = getThis();
+
+	old_root = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("root")-1, 0 TSRMLS_CC);
+	if(old_root != root) {
+		if(IS_NULL != Z_TYPE_P(old_root)) {
+			/* TODO detach from old root, if different */
+		}
+		/* TODO notify the root? */
+		META_UP_PROP(nodelist, obj, "root", root);
+		Z_ADDREF_P(root);
+	}
+}
+/* }}} */
+/* {{{ proto public ASTTree ASTNodeList::getRoot() */
+PHP_METHOD(ASTNodeList, getRoot) {
+	zval *index;
+	index = zend_read_property(META_CLASS(nodelist), getThis(), STRL_PAIR("index")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(index, 0, 1);
+}
+/* }}} */
+/* {{{ proto public void ASTNodeList::setParent(Treeish $parent)
  * Set the parent, an ASTNodeList or ASTNodeList */
 PHP_METHOD(ASTNodeList, setParent) {
 	zval *obj, *parent, *old_parent;
-	zend_class_entry *parent_ce;
 
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "o",
-	                                    &parent)) {
-		WRONG_PARAM_COUNT;
-	}
-	parent_ce = Z_OBJCE_P(parent);
-	if(!(instanceof_function(parent_ce, META_CLASS(node) TSRMLS_CC) || instanceof_function(parent_ce, META_CLASS(nodelist) TSRMLS_CC))) {
-		/* TODO make node and nodelist both implement a marker interface and typehint that via arg info directly */
-		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node %d", __LINE__);
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "O", &parent, META_CLASS(treeish))) {
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Parent is not a valid tree node");
 		return;
 	}
 
@@ -266,6 +396,41 @@ PHP_METHOD(ASTNodeList, setParent) {
 		META_UP_PROP(nodelist, obj, "parent", parent);
 		Z_ADDREF_P(parent);
 	}
+}
+/* }}} */
+/* {{{ proto public Treeish ASTNodeList::getParent() */
+PHP_METHOD(ASTNodeList, getParent) {
+	zval *parent;
+	parent = zend_read_property(META_CLASS(nodelist), getThis(), STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(parent, 0, 1);
+}
+/* }}} */
+/* {{{ proto public void ASTNodeList::setIndex(int index)
+ * set the index of this node within the parent */
+PHP_METHOD(ASTNodeList, setIndex) {
+	zval *obj, *parent;
+	long index;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l", &index)) {
+		WRONG_PARAM_COUNT;
+	}
+	obj = getThis();
+	parent = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
+	if(IS_NULL == Z_TYPE_P(parent)) {
+		php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Cannot set index without a parent");
+		return;
+	}
+	else {
+		/* TODO check if index is valid, call parent perhaps? */
+	}
+	META_UP_PROP_L(nodelist, obj, "index", index);
+}
+/* }}} */
+/* {{{ proto public int ASTNodeList::getIndex() */
+PHP_METHOD(ASTNodeList, getIndex) {
+	zval *index;
+	index = zend_read_property(META_CLASS(nodelist), getThis(), STRL_PAIR("index")-1, 0 TSRMLS_CC);
+	RETURN_ZVAL(index, 0, 1);
 }
 /* }}} */
 /* {{{ proto public void ASTNodeList::appendChild(mixed $node) */
@@ -323,7 +488,19 @@ ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setroot, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, root, ASTTree, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_getroot, 0, 0, 0)
+ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setparent, 0, 0, 1)
+	ZEND_ARG_OBJ_INFO(0, parent, Treeish, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_getparent, 0, 0, 0)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_setindex, 0, 0, 1)
+ZEND_END_ARG_INFO()
+ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_getindex, 0, 0, 0)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_nodelist_appendchild, 0, 0, 1)
 	ZEND_ARG_INFO(0, node)
@@ -338,7 +515,12 @@ ZEND_END_ARG_INFO()
 static const function_entry php_meta_astnodelist_functions[] = {
 	PHP_ME(ASTNodeList, __construct,		arginfo_nodelist_construct, ZEND_ACC_CTOR|ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, __toString,			arginfo_nodelist_tostring, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, setRoot,			arginfo_nodelist_setroot, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, getRoot,			arginfo_nodelist_getroot, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, setParent,			arginfo_nodelist_setparent, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, getParent,			arginfo_nodelist_getparent, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, setIndex,			arginfo_nodelist_setindex, ZEND_ACC_PUBLIC)
+	PHP_ME(ASTNodeList, getIndex,			arginfo_nodelist_getindex, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, appendChild,		arginfo_nodelist_appendchild, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, hasChildren,		arginfo_nodelist_haschildren, ZEND_ACC_PUBLIC)
 	PHP_ME(ASTNodeList, setLines,			arginfo_nodelist_setlines, ZEND_ACC_PUBLIC)

@@ -37,6 +37,18 @@
 int meta_parser_init_function(INIT_FUNC_ARGS);
 
 /**
+ * Treeish interface, has a parent, a root tree to which it belongs, and it's serializable
+ */
+zend_class_entry *php_meta_asttreeish_ce;
+#define PHP_META_ASTTREEISH_CE_NAME "Treeish"
+
+/**
+ * Subtree interface, inherits Treeish, and has children and it's iterable
+ */
+zend_class_entry *php_meta_astsubtree_ce;
+#define PHP_META_ASTSUBTREE_CE_NAME "Subtree"
+
+/**
  * ASTNode, abstract class
  */
 zend_class_entry *php_meta_astnode_ce;
@@ -72,9 +84,22 @@ zend_class_entry *php_meta_astbinarynode_ce;
 zend_class_entry *php_meta_astternarynode_ce;
 #define PHP_META_ASTTERNARYNODE_CE_NAME "ASTTernaryNode"
 
+/**
+ * Many nodes have "filling areas" for CST terminals.
+ * These numbers are used to identify those areas across all nodes, homogenously
+ */
+/* TODO export them to the runtime */
+
+#define META_FILL_UNARY_SIMPLE 1
+#define META_FILL_BINARY_BEFORE_LHS 2
+#define META_FILL_BINARY_LHS_OPERATOR 3
+#define META_FILL_BINARY_OPERATOR_RHS 4
+#define META_FILL_BINARY_AFTER_RHS 5
+
 
 /******** internal macros, functions and variables, only for parser.c */
 #ifdef _INTERNAL
+static const function_entry php_meta_asttreeish_functions[];
 static const function_entry php_meta_astnode_functions[];
 static const function_entry php_meta_astnodelist_functions[];
 static const function_entry php_meta_asttree_functions[];
