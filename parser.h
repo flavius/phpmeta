@@ -20,6 +20,7 @@
 #define PARSER_H
 #include <zend.h>
 #include <php.h>
+#include <limits.h>
 
 
 /* TODO move the following to parser_API.h? */
@@ -90,11 +91,12 @@ zend_class_entry *php_meta_astternarynode_ce;
  */
 /* TODO export them to the runtime */
 
+#define META_FILL_BEFORE 0
 #define META_FILL_UNARY_SIMPLE 1
 #define META_FILL_BINARY_BEFORE_LHS 2
 #define META_FILL_BINARY_LHS_OPERATOR 3
 #define META_FILL_BINARY_OPERATOR_RHS 4
-#define META_FILL_BINARY_AFTER_RHS 5
+#define META_FILL_AFTER INT_MAX
 
 
 /******** internal macros, functions and variables, only for parser.c */

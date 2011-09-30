@@ -247,9 +247,7 @@ processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	end_line = META_PROP(nodelist, C, "end_line");
 	META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
 	META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
-	/*TODO apend all children between B and C, ensuring there's at least one space*/
 	/*TODO take tree's flags into consideration*/
-    META_PARSER_FW_FILL(NULL, B, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
 	if(NULL != B->next) {
 		TOKEN *cursor, *prev;
 		cursor = B->next;
@@ -288,7 +286,10 @@ top_stmt(A) ::= stmt_with_semicolon(B) . {
 }
 
 stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
-    A = B; // C
+    A = B;
+    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_AFTER);
+    META_CALL_METHOD(binarynode, B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
+    efree(C);
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {

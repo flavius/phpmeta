@@ -45,6 +45,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(node, "index", PROTECTED);
 	META_PROP_ZERO(node, "start_line", PROTECTED);
 	META_PROP_ZERO(node, "end_line", PROTECTED);
+	META_PROP_ZERO(node, "fill", PROTECTED);
 	zend_class_implements(META_CLASS(node) TSRMLS_CC, 1, META_CLASS(treeish));
 
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTNODELIST_CE_NAME, php_meta_astnodelist_functions);
@@ -69,7 +70,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTUNARYNODE_CE_NAME, php_meta_astunarynode_functions);
 	META_CLASS(unarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
 	META_PROP_NULL(unarynode, "operator", PROTECTED);
-	META_PROP_NULL(unarynode, "fill", PROTECTED);
+	//META_PROP_NULL(unarynode, "fill", PROTECTED);
 	META_PROP_NULL(unarynode, "operand", PROTECTED);
 	memcpy(&unarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(unarynode)->create_object = create_object_unarynode;
@@ -79,9 +80,8 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	META_PROP_NULL(binarynode, "lhs", PROTECTED);
 	META_PROP_NULL(binarynode, "rhs", PROTECTED);
 	META_PROP_NULL(binarynode, "operator", PROTECTED);
-	META_PROP_NULL(binarynode, "between_lhs_operator", PROTECTED);
-	META_PROP_NULL(binarynode, "between_operator_rhs", PROTECTED);
-	META_PROP_NULL(binarynode, "after_rhs", PROTECTED);
+	//META_PROP_NULL(binarynode, "between_lhs_operator", PROTECTED);
+	//META_PROP_NULL(binarynode, "between_operator_rhs", PROTECTED);
 	memcpy(&binarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(binarynode)->create_object = create_object_binarynode;
 
@@ -848,7 +848,6 @@ PHP_METHOD(ASTUnaryNode, appendBetween) {
 	fill = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
 	add_next_index_zval(fill, child);
 }
-
 /* }}} */
 /* {{{ ASTUnaryNode methods */
 ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_construct, 0, 0, 2)
@@ -892,9 +891,9 @@ static void meta_binarynode_dtor(void *object, zend_object_handle handle TSRMLS_
 	zval **property;
 
 	obj = object;
-	META_DECREF_HTITEM(obj, "*", "between_lhs_operator", property);
-	META_DECREF_HTITEM(obj, "*", "between_operator_rhs", property);
-	META_DECREF_HTITEM(obj, "*", "after_rhs", property);
+	//META_DECREF_HTITEM(obj, "*", "between_lhs_operator", property);
+	//META_DECREF_HTITEM(obj, "*", "between_operator_rhs", property);
+	META_DECREF_HTITEM(obj, "*", "fill", property);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -908,13 +907,13 @@ static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC
 
 	MAKE_STD_ZVAL(property);
 	array_init(property);
-	META_UPDATE_HPROPERTY(obj, "*", "between_lhs_operator", property);
+	META_UPDATE_HPROPERTY(obj, "*", "fill", property);
+	//META_UPDATE_HPROPERTY(obj, "*", "between_lhs_operator", property);
+	/*
 	MAKE_STD_ZVAL(property);
 	array_init(property);
 	META_UPDATE_HPROPERTY(obj, "*", "between_operator_rhs", property);
-	MAKE_STD_ZVAL(property);
-	array_init(property);
-	META_UPDATE_HPROPERTY(obj, "*", "after_rhs", property);
+	*/
 
 	retval.handle = zend_objects_store_put(obj, meta_binarynode_dtor, meta_binarynode_free, NULL TSRMLS_CC);
 	retval.handlers = &binarynode_handlers;
@@ -980,29 +979,22 @@ PHP_METHOD(ASTBinaryNode, __toString) {
 /* {{{ proto public void ASTBinaryNode::appendBetween($child, $where)
  * Append $child to the filling area $where. */
 PHP_METHOD(ASTBinaryNode, appendBetween) {
-	zval *obj, *fill, *child;
+	zval *obj, *fill, *child, *store;
 	long where;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &child, &where)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
-	switch(where) {
-	case META_FILL_BINARY_LHS_OPERATOR:
-		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_lhs_operator")-1, 0 TSRMLS_CC);
-		break;
-	case META_FILL_BINARY_OPERATOR_RHS:
-		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("between_operator_rhs")-1, 0 TSRMLS_CC);
-		break;
-	case META_FILL_BINARY_AFTER_RHS:
-		fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("after_rhs")-1, 0 TSRMLS_CC);
-		break;
-	default:
-		/* TODO error: invalid place to append child to */
-		return;
+	store = NULL;
+	fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	if(FAILURE == zend_hash_index_find(Z_ARRVAL_P(fill), where, (void**)&store)) {
+		MAKE_STD_ZVAL(store);
+		array_init(store);
+		add_index_zval(fill, where, store);
 	}
 	Z_ADDREF_P(child);
-	add_next_index_zval(fill, child);
+	add_next_index_zval(store, child);
 }
 /* }}} */
 /* {{{ proto public void ASTBinaryNode::setLHS(mixed $node)
