@@ -69,15 +69,31 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
 	case 0:
 		break;
 	case T_PLUS:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
 	case T_OUTSIDE_SCRIPTING:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
 	case T_OPEN_TAG:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
 	case T_OPEN_TAG_WITH_ECHO:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
 	case T_WHITESPACE:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_SEMICOLON:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
 	case T_CLOSE_TAG:
 		MAKE_STD_ZVAL(TOKEN_MINOR(t));
-		if(major == T_WHITESPACE) {
-			TOKEN_IS_DISPENSABLE(t) = 1;
-		}
 		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
 		break;
 	case T_LNUMBER:
@@ -101,7 +117,11 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
 	default:
 		MAKE_STD_ZVAL(TOKEN_MINOR(t));
 		ZVAL_STRINGL(TOKEN_MINOR(t), "UNKNOWN", sizeof("UNKNOWN"), 1);
+		php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Unknown terminal %d", major);
 	}
+    if(major == T_WHITESPACE) {
+        TOKEN_IS_DISPENSABLE(t) = 1;
+    }
 	return t;
 }
 
