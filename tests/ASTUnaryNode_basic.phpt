@@ -39,11 +39,11 @@ object(ASTTree)#1 (8) {
       int(0)
       ["end_line":protected]=>
       int(0)
-      ["operator":protected]=>
-      string(5) "echo "
       ["fill":protected]=>
       array(0) {
       }
+      ["operator":protected]=>
+      string(5) "echo "
       ["operand":protected]=>
       int(42)
     }
