@@ -92,11 +92,12 @@ zend_class_entry *php_meta_astternarynode_ce;
 /* TODO export them to the runtime */
 
 #define META_FILL_BEFORE 0
-#define META_FILL_UNARY_SIMPLE 1
-#define META_FILL_BINARY_BEFORE_LHS 2
-#define META_FILL_BINARY_LHS_OPERATOR 3
-#define META_FILL_BINARY_OPERATOR_RHS 4
 #define META_FILL_AFTER INT_MAX
+#define META_FILL_UNARY_SIMPLE 1
+#define META_FILL_BINARY_BEFORE_LHS META_FILL_BEFORE
+#define META_FILL_BINARY_LHS_OPERATOR 2
+#define META_FILL_BINARY_OPERATOR_RHS 4
+#define META_FILL_BINARY_AFTER_RHS META_FILL_AFTER
 
 
 /******** internal macros, functions and variables, only for parser.c */
