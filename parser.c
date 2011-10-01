@@ -21,6 +21,7 @@
 #include <zend_operators.h>
 #include <php.h>
 #include <standard/php_string.h>
+#include <standard/php_array.h>
 #include "meta_parser.h" /* for T_ terminal definitions */
 #include "meta_scanner.h"
 #include "scanner_API.h"
@@ -956,23 +957,76 @@ PHP_METHOD(ASTBinaryNode, __construct) {
 /* {{{ proto public string ASTBinaryNode::__toString()
  * Serialize the node to PHP code. */
 PHP_METHOD(ASTBinaryNode, __toString) {
-	zval *obj, *property;
+	zval *obj, *property, *fill;
+	zval *delimiter, *buffer;
+
+	ulong index;
 
 	obj = getThis();
+	delimiter = NULL;
 	RETVAL_EMPTY_STRING();
-	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("lhs")-1, 0 TSRMLS_CC);
-	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
+	MAKE_STD_ZVAL(delimiter);
+	ZVAL_EMPTY_STRING(delimiter);
+
+	fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+
+	index=0;
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(fill));
+	while(SUCCESS == zend_hash_has_more_elements(Z_ARRVAL_P(fill))) {
+		zval **data;
+		if(index <= META_FILL_BINARY_OPERATOR_RHS+1) {
+			if(index & 1) {
+				switch(index) {
+					case 1:
+						property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("lhs")-1, 0 TSRMLS_CC);
+						break;
+					case 3:
+						property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
+						break;
+					case 5:
+						property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("rhs")-1, 0 TSRMLS_CC);
+						break;
+				}
+				concat_function(return_value, return_value, property TSRMLS_CC);
+			}
+			else if(SUCCESS == zend_hash_index_find(Z_ARRVAL_P(fill), index, (void**)&data)) {
+				ALLOC_INIT_ZVAL(buffer);
+				php_implode(delimiter, *data, buffer TSRMLS_CC);
+				concat_function(return_value, return_value, buffer TSRMLS_CC);
+				zval_dtor(buffer);
+				efree(buffer);
+				zend_hash_move_forward(Z_ARRVAL_P(fill));
+			}
+			index++;
+		}
+		else {
+			zend_hash_get_current_key(Z_ARRVAL_P(fill), NULL, &index, 0);
+			if(SUCCESS != zend_hash_get_current_data(Z_ARRVAL_P(fill), (void**)&data)) {
+				// TODO error, cleanup *
+				return;
+			}
+			if(Z_TYPE_PP(data) == IS_ARRAY) { /* TODO or an iterable object perhaps ? */
+				ALLOC_INIT_ZVAL(buffer);
+				php_implode(delimiter, *data, buffer TSRMLS_CC);
+				concat_function(return_value, return_value, buffer TSRMLS_CC);
+				zval_dtor(buffer);
+				efree(buffer);
+			}
+			else {
+				concat_function(return_value, return_value, *data TSRMLS_CC);
+			}
+			zend_hash_move_forward(Z_ARRVAL_P(fill));
+		}
 	}
-	/* TODO check root's flags and serialize between_lhs_operator if needed */
-	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
-	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
-	}
-	/* TODO check root's flags and serialize between_operator_rhs if needed */
-	property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("rhs")-1, 0 TSRMLS_CC);
-	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		/* TODO error reporting, though concat_function never returns FAILURE (? fix the engine) */
+	zval_ptr_dtor(&delimiter);
+	if(0 == Z_STRLEN_P(return_value)) {
+		/* TODO error reporting, though concat_function never returns FAILURE (fix the engine?) */
+		property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("lhs")-1, 0 TSRMLS_CC);
+		concat_function(return_value, return_value, property TSRMLS_CC);
+		property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
+		concat_function(return_value, return_value, property TSRMLS_CC);
+		property = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("rhs")-1, 0 TSRMLS_CC);
+		concat_function(return_value, return_value, property TSRMLS_CC);
 	}
 }
 /* }}} */

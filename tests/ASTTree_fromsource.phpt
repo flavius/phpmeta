@@ -28,7 +28,7 @@ object(ASTTree)#1 (8) {
   ["children":protected]=>
   array(1) {
     [0]=>
-    object(ASTNodeList)#4 (6) {
+    object(ASTNodeList)#6 (6) {
       ["root":protected]=>
       *RECURSION*
       ["parent":protected]=>
@@ -38,7 +38,7 @@ object(ASTTree)#1 (8) {
       ["start_line":protected]=>
       int(1)
       ["end_line":protected]=>
-      int(1)
+      int(0)
       ["children":protected]=>
       array(3) {
         [0]=>
@@ -46,7 +46,7 @@ object(ASTTree)#1 (8) {
         [1]=>
         string(1) " "
         [2]=>
-        object(ASTNodeList)#3 (6) {
+        object(ASTNodeList)#5 (6) {
           ["root":protected]=>
           *RECURSION*
           ["parent":protected]=>
@@ -54,15 +54,15 @@ object(ASTTree)#1 (8) {
           ["index":protected]=>
           int(-1)
           ["start_line":protected]=>
-          int(1)
+          int(0)
           ["end_line":protected]=>
-          int(1)
+          int(0)
           ["children":protected]=>
           array(1) {
             [0]=>
-            object(ASTUnaryNode)#2 (9) {
+            object(ASTBinaryNode)#4 (10) {
               ["type":protected]=>
-              int(67)
+              int(41)
               ["root":protected]=>
               *RECURSION*
               ["parent":protected]=>
@@ -70,16 +70,73 @@ object(ASTTree)#1 (8) {
               ["index":protected]=>
               NULL
               ["start_line":protected]=>
-              int(1)
+              int(0)
               ["end_line":protected]=>
-              int(1)
-              ["operator":protected]=>
-              NULL
+              int(0)
               ["fill":protected]=>
-              array(0) {
+              array(3) {
+                [2]=>
+                array(1) {
+                  [0]=>
+                  string(1) " "
+                }
+                [4]=>
+                array(1) {
+                  [0]=>
+                  string(2) "  "
+                }
+                [2147483647]=>
+                array(1) {
+                  [0]=>
+                  string(1) ";"
+                }
               }
-              ["operand":protected]=>
-              int(42)
+              ["lhs":protected]=>
+              object(ASTUnaryNode)#2 (9) {
+                ["type":protected]=>
+                int(67)
+                ["root":protected]=>
+                *RECURSION*
+                ["parent":protected]=>
+                NULL
+                ["index":protected]=>
+                NULL
+                ["start_line":protected]=>
+                int(1)
+                ["end_line":protected]=>
+                int(1)
+                ["fill":protected]=>
+                array(0) {
+                }
+                ["operator":protected]=>
+                NULL
+                ["operand":protected]=>
+                int(42)
+              }
+              ["rhs":protected]=>
+              object(ASTUnaryNode)#3 (9) {
+                ["type":protected]=>
+                int(67)
+                ["root":protected]=>
+                *RECURSION*
+                ["parent":protected]=>
+                NULL
+                ["index":protected]=>
+                NULL
+                ["start_line":protected]=>
+                int(1)
+                ["end_line":protected]=>
+                int(1)
+                ["fill":protected]=>
+                array(0) {
+                }
+                ["operator":protected]=>
+                NULL
+                ["operand":protected]=>
+                int(43)
+              }
+              ["operator":protected]=>
+              string(1) "+"
             }
           }
         }
@@ -87,8 +144,8 @@ object(ASTTree)#1 (8) {
     }
   }
   ["source":protected]=>
-  string(8) "<?php 42"
+  string(15) "<?php 42 +  43;"
   ["flags":protected]=>
   int(0)
 }
-string(8) "<?php 42"
+string(15) "<?php 42 +  43;"

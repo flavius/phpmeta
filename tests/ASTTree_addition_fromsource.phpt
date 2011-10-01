@@ -10,4 +10,4 @@ $tree->parse();
 var_dump((string)$tree);
 ?>
 --EXPECT--
-string(11) "<?php 20+22"
+string(12) "<?php 20+22;"
