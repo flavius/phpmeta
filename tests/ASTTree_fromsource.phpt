@@ -92,7 +92,7 @@ object(ASTTree)#1 (8) {
                 }
               }
               ["lhs":protected]=>
-              object(ASTUnaryNode)#2 (9) {
+              object(ASTUnaryNode)#2 (10) {
                 ["type":protected]=>
                 int(67)
                 ["root":protected]=>
@@ -110,11 +110,13 @@ object(ASTTree)#1 (8) {
                 }
                 ["operator":protected]=>
                 NULL
+                ["subtype":protected]=>
+                int(0)
                 ["operand":protected]=>
                 int(42)
               }
               ["rhs":protected]=>
-              object(ASTUnaryNode)#3 (9) {
+              object(ASTUnaryNode)#3 (10) {
                 ["type":protected]=>
                 int(67)
                 ["root":protected]=>
@@ -132,6 +134,8 @@ object(ASTTree)#1 (8) {
                 }
                 ["operator":protected]=>
                 NULL
+                ["subtype":protected]=>
+                int(0)
                 ["operand":protected]=>
                 int(43)
               }
