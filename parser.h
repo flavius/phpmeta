@@ -98,6 +98,10 @@ zend_class_entry *php_meta_astternarynode_ce;
 #define META_FILL_UNARY_PREOPERATOR_OPERAND 2
 #define META_FILL_UNARY_OPERAND_POSTOPERATOR 4
 #define META_FILL_UNARY_AFTER_POSTOPERATOR META_FILL_AFTER
+/* an unary node has its operator either pre or post (ASTUnaryNode::$subtype) */
+#define META_UNARY_PREOPERATOR 1
+#define META_UNARY_POSTOPERATOR 5
+#define META_UNARY_NOP 0
 
 #define META_FILL_BINARY_BEFORE_LHS META_FILL_BEFORE
 #define META_FILL_BINARY_LHS_OPERATOR 2

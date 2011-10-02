@@ -302,7 +302,7 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 
 expr(A) ::= LNUMBER(B) . {
 	Z_ADDREF_P(tree);
-	META_NODE_CTOR(unarynode, A, "lzz", (long)T_LNUMBER, tree, TOKEN_MINOR(B));
+	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
 	META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
 	B->prev->next = NULL;
 	B->next->prev = NULL;

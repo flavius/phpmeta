@@ -71,7 +71,7 @@ int meta_parser_init_function(INIT_FUNC_ARGS) {
 	INIT_CLASS_ENTRY(ce, PHP_META_ASTUNARYNODE_CE_NAME, php_meta_astunarynode_functions);
 	META_CLASS(unarynode) = zend_register_internal_class_ex(&ce, META_CLASS(node), PHP_META_ASTNODE_CE_NAME TSRMLS_CC);
 	META_PROP_NULL(unarynode, "operator", PROTECTED);
-	//META_PROP_NULL(unarynode, "fill", PROTECTED);
+	META_PROP_ZERO(unarynode, "subtype", PROTECTED);
 	META_PROP_NULL(unarynode, "operand", PROTECTED);
 	memcpy(&unarynode_handlers, zend_get_std_object_handlers(), sizeof(zend_object_handlers));
 	META_CLASS(unarynode)->create_object = create_object_unarynode;
@@ -760,19 +760,23 @@ static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC)
 }
 
 /* }}} */
-/* {{{ proto public void ASTUnaryNode::__construct(int $type, ASTTree $tree [, mixed $operand [, string $operator]]) */
+/* {{{ proto public void ASTUnaryNode::__construct(ASTTree $tree, int $type, mixed $operand [, int $subtype [, string $operator]]) */
 PHP_METHOD(ASTUnaryNode, __construct) {
 	zval *obj, *operand, *root, *operator;
-	long type;
+	long type, subtype;
 
 	operand = NULL;
 	operator = NULL;
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "lO|zz",
-	                                    &type, &root, META_CLASS(tree), &operand, &operator)) {
+	subtype = META_UNARY_NOP;
+
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "Olz|lz", &root, META_CLASS(tree), &type, &operand, &subtype, &operator)) {
 		WRONG_PARAM_COUNT;
 	}
+	/* TODO: some types require a subtype (e.g. ++ needs to be either pre- or post-), check if subtype is set */
+
 	obj = getThis();
 	META_UP_PROP_L(unarynode, obj, "type", type);
+	META_UP_PROP_L(unarynode, obj, "subtype", subtype);
 	META_UP_PROP(unarynode, obj, "root", root);
 	if(NULL != operand) {
 		META_UP_PROP(unarynode, obj, "operand", operand);
@@ -851,9 +855,12 @@ PHP_METHOD(ASTUnaryNode, appendBetween) {
 }
 /* }}} */
 /* {{{ ASTUnaryNode methods */
-ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_construct, 0, 0, 2)
+ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_construct, 0, 0, 3)
+	ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
 	ZEND_ARG_INFO(0, type)
-ZEND_ARG_OBJ_INFO(0, tree, ASTTree, 0)
+	ZEND_ARG_INFO(0, operand)
+	ZEND_ARG_INFO(0, subtype)
+	ZEND_ARG_INFO(0, operator)
 ZEND_END_ARG_INFO()
 ZEND_BEGIN_ARG_INFO_EX(arginfo_unarynode_tostring, 0, 0, 0)
 ZEND_END_ARG_INFO()
