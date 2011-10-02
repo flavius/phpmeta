@@ -27,7 +27,7 @@ object(ASTTree)#1 (8) {
   ["children":protected]=>
   array(1) {
     [0]=>
-    object(ASTBinaryNode)#2 (11) {
+    object(ASTBinaryNode)#2 (10) {
       ["type":protected]=>
       int(41)
       ["root":protected]=>
@@ -40,18 +40,15 @@ object(ASTTree)#1 (8) {
       int(0)
       ["end_line":protected]=>
       int(0)
+      ["fill":protected]=>
+      array(0) {
+      }
       ["lhs":protected]=>
       int(20)
       ["rhs":protected]=>
       int(22)
       ["operator":protected]=>
       string(1) "+"
-      ["between_lhs_operator":protected]=>
-      array(0) {
-      }
-      ["between_operator_rhs":protected]=>
-      array(0) {
-      }
     }
   }
   ["source":protected]=>

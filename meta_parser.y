@@ -42,24 +42,24 @@
 #endif
 
 
-/*TODO rename it globally*/
-typedef TOKEN Token;
+	/*TODO rename it globally*/
+	typedef TOKEN Token;
 
 #ifndef NDEBUG
-/*TODO remove*/
+	/*TODO remove*/
 #include <assert.h>
 #endif
 
 #include "meta_parser.h"
 
-/*TODO maybe move it to the scanner?*/
-static const char *const yyTokenName[];
-const char* meta_token_repr(int n) {
-    if(n > T_INTERNAL_SKIP) {
-        return "UNKNOWN";
-    }
-    return yyTokenName[n];
-}
+	/*TODO maybe move it to the scanner?*/
+	static const char *const yyTokenName[];
+	const char* meta_token_repr(int n) {
+		if(n > T_INTERNAL_SKIP) {
+			return "UNKNOWN";
+		}
+		return yyTokenName[n];
+	}
 
 
 #if 0
@@ -68,23 +68,45 @@ const char* meta_token_repr(int n) {
 #define DBG(fmt, args...)
 #endif
 
+#define META_PARSER_REV_FILL(upto, start, class, obj, where) do { TOKEN* cursor; cursor = start; \
+        while(upto != cursor->prev) { cursor = cursor->prev; } \
+        while(cursor != start) { \
+            META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+            cursor = cursor->next; \
+            efree(cursor->prev); \
+        } \
+    } while(0)
+
+#define META_PARSER_FW_FILL(upto, start, class, obj, where) do { \
+        if(upto != start->next) { \
+            TOKEN *cursor, *prev; \
+            cursor = start->next; \
+            while(upto != cursor) { \
+                META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+                prev = cursor; \
+                cursor = cursor->next; \
+                efree(prev); \
+            } \
+        } \
+    } while(0)
+
 }
 %name MetaParser
 %start_symbol start
 %token_prefix T_
-%token_type{Token*}
-%extra_argument{ zval* tree }
+%token_type {Token*}
+%extra_argument { zval* tree }
 
 %token_destructor {
-    /* yeah, we shouldn't hide the warning */
-    if(tree == tree) {}
+	/* yeah, we shouldn't hide the warning */
+	if(tree == tree) {}
 }
 
 %parse_accept {
-    /* php_printf("\t\t\t\t\t ACCEPT!\n"); */
+	/* php_printf("\t\t\t\t\t ACCEPT!\n"); */
 }
 %parse_failure {
-    php_printf("\t\t\t\t\t FAILURE!\n");
+	php_printf("\t\t\t\t\t FAILURE!\n");
 }
 
 %left INCLUDE INCLUDE_ONCE EVAL REQUIRE REQUIRE_ONCE.
@@ -196,84 +218,94 @@ const char* meta_token_repr(int n) {
 %type top_stmt_list {zval*}
 %type top_stmt {zval*}
 %type expr {zval*}
+%type stmt_with_semicolon{zval*}
 
 start(A) ::=  processing(B) . {
-    /* A B */
+	/* A B */
 }
 
 processing(A) ::= . {
-    /* A B C */
+	/* A B C */
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
-    /*TODO instead of crafting nodes manually, use the tree as a factory,
-    which instantiates the right classes if the user has some specific preferences*/
-    META_CALL_METHOD(tree, tree, appendchild, "z", C);
-    /* A B C */
+	/*TODO instead of crafting nodes manually, use the tree as a factory,
+	which instantiates the right classes if the user has some specific preferences*/
+	META_CALL_METHOD(tree, tree, appendchild, "z", C);
+	/* A B C */
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
-    /*TODO init A as unary, set value to B, efree(B)*/
+	/*TODO init A as unary, set value to B, efree(B)*/
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
-    zval *end_line;
-    Z_ADDREF_P(tree);
-    META_NODE_CTOR(nodelist, A, "z", tree);
-    end_line = META_PROP(nodelist, C, "end_line");
-    META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
-    META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
-    /*TODO apend all children between B and C, ensuring there's at least one space*/
-    /*TODO take tree's flags into consideration*/
-    if(NULL != B->next) {
-        TOKEN *cursor, *prev;
-        cursor = B->next;
-        while(NULL != cursor) {
-            META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(cursor));
-            prev = cursor;
-            cursor = cursor->next;
-            efree(prev);
-        }
-    }
-    META_CALL_METHOD(nodelist, A, appendchild, "z", C);
-    efree(B);
+	zval *end_line;
+
+	Z_ADDREF_P(tree);
+	META_NODE_CTOR(nodelist, A, "z", tree);
+	end_line = META_PROP(nodelist, C, "end_line");
+	META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
+	META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
+	/*TODO take tree's flags into consideration*/
+	if(NULL != B->next) {
+		TOKEN *cursor, *prev;
+		cursor = B->next;
+		while(NULL != cursor) {
+			META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(cursor));
+			prev = cursor;
+			cursor = cursor->next;
+			efree(prev);
+		}
+	}
+	META_CALL_METHOD(nodelist, A, appendchild, "z", C);
+	efree(B);
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . {
-    /* A B C D */
+	/* A B C D */
 }
 
 top_stmt_list(A) ::= top_stmt(B) . {
-    zval *start_line, *end_line;
+	zval *start_line, *end_line;
 
-    start_line = META_PROP(node, B, "start_line");
-    end_line = META_PROP(node, B, "end_line");
-    Z_ADDREF_P(tree);
-    META_NODE_CTOR(nodelist, A, "z", tree);
-    META_CALL_METHOD(nodelist, A, appendchild, "z", B);
-    META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
+	start_line = META_PROP(node, B, "start_line");
+	end_line = META_PROP(node, B, "end_line");
+	Z_ADDREF_P(tree);
+	META_NODE_CTOR(nodelist, A, "z", tree);
+	META_CALL_METHOD(nodelist, A, appendchild, "z", B);
+	META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
-    A = B;
-    /* A B C */
+	A = B;
+	/* A B C */
 }
 
-top_stmt(A) ::= expr(B) . {
-    A = B;
+top_stmt(A) ::= stmt_with_semicolon(B) . {
+    A = B; // C
 }
 
-expr(A) ::= expr(B) PLUS(C) expr(D) . {
-    Z_ADDREF_P(tree);
-    META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
+stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
+    A = B;
+    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_AFTER);
+    META_CALL_METHOD(binarynode, B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
     efree(C);
 }
 
+expr(A) ::= expr(B) PLUS(C) expr(D) . {
+	Z_ADDREF_P(tree); // C
+	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
+    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_BINARY_LHS_OPERATOR);
+    META_PARSER_FW_FILL(NULL, C, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
+	efree(C);
+}
+
 expr(A) ::= LNUMBER(B) . {
-    Z_ADDREF_P(tree);
-    META_NODE_CTOR(unarynode, A, "lzz", (long)T_LNUMBER, tree, TOKEN_MINOR(B));
-    META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
-    B->prev->next = NULL;
-    B->next->prev = NULL;
-    efree(B);
+	Z_ADDREF_P(tree);
+	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
+	META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
+	B->prev->next = NULL;
+	B->next->prev = NULL;
+	efree(B);
 }
 

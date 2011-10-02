@@ -49,60 +49,80 @@ const unsigned int meta_scanner_maxfill = YYMAXFILL;
  - create map for T_ numbers and TOKEN_IS_DISPENSABLE
  - create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit) */
 META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSRMLS_DC) {
-    TOKEN* t;
-    int errcode=0;
-    long number;
+	TOKEN* t;
+	int errcode=0;
+	long number;
 
-    /* TODO take SFLAG_SIMPLE_KEYWORDS into account */
-    t = emalloc(sizeof(TOKEN));
-    TOKEN_MAJOR(t) = major;
-    TOKEN_MINOR(t) = NULL;
-    t->dirty = 0;
-    /* TODO do something about free_me, either drop it completely, or redesign its role in token chains (meta_token_dtor) */
-    t->free_me = 0;
-    t->start_line = 0;
-    t->end_line = 0;
-    t->prev = NULL;
-    t->next = NULL;
-    TOKEN_IS_DISPENSABLE(t) = 0;
-    switch(major) {
-        case 0:
-            break;
-        case T_PLUS:
-        case T_OUTSIDE_SCRIPTING:
-        case T_OPEN_TAG:
-        case T_OPEN_TAG_WITH_ECHO:
-        case T_WHITESPACE:
-        case T_CLOSE_TAG:
-            MAKE_STD_ZVAL(TOKEN_MINOR(t));
-            if(major == T_WHITESPACE) {
-                TOKEN_IS_DISPENSABLE(t) = 1;
-            }
-            ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
-            break;
-        case T_LNUMBER:
-            MAKE_STD_ZVAL(TOKEN_MINOR(t));
-            if(HAS_FLAG(scanner, CHECK_OVERFLOWS)) {
-                errno = 0;
-                number = strtol(start, NULL, 0);
-                errcode = errno;
-                ZVAL_LONG(TOKEN_MINOR(t), number);
-                if(ERANGE == errcode) {
-                    t->dirty = 1;
-                    /* TODO remove me */
-                    perror(NULL);
-                    /* TODO do we want the original input as string, or INT_MAX as now? */
-                }
-            }
-            else {
-                ZVAL_LONG(TOKEN_MINOR(t), strtol(start, NULL, 0));
-            }
-            break;
-        default:
-            MAKE_STD_ZVAL(TOKEN_MINOR(t));
-            ZVAL_STRINGL(TOKEN_MINOR(t), "UNKNOWN", sizeof("UNKNOWN"), 1);
+	/* TODO take SFLAG_SIMPLE_KEYWORDS into account */
+	t = emalloc(sizeof(TOKEN));
+	TOKEN_MAJOR(t) = major;
+	TOKEN_MINOR(t) = NULL;
+	t->dirty = 0;
+	/* TODO do something about free_me, either drop it completely, or redesign its role in token chains (meta_token_dtor) */
+	t->free_me = 0;
+	t->start_line = 0;
+	t->end_line = 0;
+	t->prev = NULL;
+	t->next = NULL;
+	TOKEN_IS_DISPENSABLE(t) = 0;
+	switch(major) {
+	case 0:
+		break;
+	case T_PLUS:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_OUTSIDE_SCRIPTING:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_OPEN_TAG:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_OPEN_TAG_WITH_ECHO:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_WHITESPACE:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_SEMICOLON:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_CLOSE_TAG:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), start, len, 1);
+		break;
+	case T_LNUMBER:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		if(HAS_FLAG(scanner, CHECK_OVERFLOWS)) {
+			errno = 0;
+			number = strtol(start, NULL, 0);
+			errcode = errno;
+			ZVAL_LONG(TOKEN_MINOR(t), number);
+			if(ERANGE == errcode) {
+				t->dirty = 1;
+				/* TODO remove me */
+				perror(NULL);
+				/* TODO do we want the original input as string, or INT_MAX as now? */
+			}
+		}
+		else {
+			ZVAL_LONG(TOKEN_MINOR(t), strtol(start, NULL, 0));
+		}
+		break;
+	default:
+		MAKE_STD_ZVAL(TOKEN_MINOR(t));
+		ZVAL_STRINGL(TOKEN_MINOR(t), "UNKNOWN", sizeof("UNKNOWN"), 1);
+		php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Unknown terminal %d", major);
+	}
+    if(major == T_WHITESPACE) {
+        TOKEN_IS_DISPENSABLE(t) = 1;
     }
-    return t;
+	return t;
 }
 
 #define TOKENS_COUNT(scanner) zend_ptr_stack_num_elements(scanner->buffer)
@@ -117,18 +137,18 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
  * - TOKEN* with major > 0 for tokens
  */
 META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
-    /* where the cursor was positioned the last time, before calling this function */
-    YYCTYPE* last_cursor;
-    /* the return value */
-    TOKEN* token;
+	/* where the cursor was positioned the last time, before calling this function */
+	YYCTYPE* last_cursor;
+	/* the return value */
+	TOKEN* token;
 
-    /* enables some rules to share code */
-    int transient_delta;
-    int transient_major;
-    /* if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor; */
-    long last_line_no;
+	/* enables some rules to share code */
+	int transient_delta;
+	int transient_major;
+	/* if between last_cursor and YYCURSOR are new lines, this will hold the line number at the point last_cursor; */
+	long last_line_no;
 
-/* interface macros */
+	/* interface macros */
 #define YYCURSOR scanner->cursor
 #define YYLIMIT scanner->limit
 #define YYMARKER scanner->marker
@@ -138,9 +158,9 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 #define YYGETCONDITION() scanner->state
 #define YYSETCONDITION(cond) scanner->state = cond
 
-/* enter a new state */
+	/* enter a new state */
 #define SETSTATE(st) YYSETCONDITION(ST_NAME(st))
-/* jumping around  */
+	/* jumping around  */
 #define yymore() goto lex_start
 #define yyless() YYCURSOR--; goto lex_start
 
@@ -151,13 +171,13 @@ META_API TOKEN* meta_scan(meta_scanner* scanner TSRMLS_DC) {
 #define RETURN(tok) token = tok; goto lex_end
 #endif
 
-    token = NULL;
-    last_cursor = YYCURSOR;
-    last_line_no = scanner->line_no;
-if(TOKENS_COUNT(scanner)) {
-    token = TOKEN_POP(scanner);
-    goto lex_end;
-}
+	token = NULL;
+	last_cursor = YYCURSOR;
+	last_line_no = scanner->line_no;
+	if(TOKENS_COUNT(scanner)) {
+		token = TOKEN_POP(scanner);
+		goto lex_end;
+	}
 
 /*!re2c
 re2c:define:YYDEBUG = DBG_SCANNER;
@@ -248,6 +268,7 @@ do_transient_start:
     if(IS_EOL(YYCURSOR-1)) {
         scanner->line_no++;
     }
+    TOKEN_IS_DISPENSABLE(ws) = 1;
     RETURN(ws);
 }
 <ST_IN_SCRIPTING>{WHITESPACE}/{WHITESPACE}{
@@ -257,7 +278,7 @@ do_transient_start:
     yymore();
 }
 /* ***** "top" tokens ***** */
-<ST_IN_SCRIPTING>{LNUM} {
+<ST_IN_SCRIPTING> {LNUM} {
     TOKEN* num;
     num = ast_token_ctor(scanner, T_LNUMBER, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
     RETURN(num);
@@ -268,7 +289,9 @@ do_transient_start:
     RETURN(plus);
 }
 <ST_IN_SCRIPTING>";" {
-    /* TODO */
+    TOKEN *semicolon;
+    semicolon = ast_token_ctor(scanner, T_SEMICOLON, last_cursor, YYCURSOR - last_cursor TSRMLS_CC);
+    RETURN(semicolon);
 }
 /*
 
@@ -282,14 +305,14 @@ ST_BACKQUOTE ST_DOUBLE_QUOTES ST_HEREDOC ST_IN_SCRIPTING ST_NOWDOC ST_VAR_OFFSET
 
 */
 lex_end:
-    if(!token->start_line) {
-        token->start_line = last_line_no;
-    }
-    if(!token->end_line) {
-        token->end_line = scanner->line_no;
-    }
-    if(0 == TOKEN_MAJOR(token)) {
-        scanner->err_no = ERR_EOI;
-    }
-    return token;
+	if(!token->start_line) {
+		token->start_line = last_line_no;
+	}
+	if(!token->end_line) {
+		token->end_line = scanner->line_no;
+	}
+	if(0 == TOKEN_MAJOR(token)) {
+		scanner->err_no = ERR_EOI;
+	}
+	return token;
 }
