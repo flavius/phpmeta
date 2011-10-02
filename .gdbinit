@@ -2,32 +2,7 @@ set confirm off
 set breakpoint pending on
 
 source environment.gdb
-set args -f tests/ASTTree_fromsource.php
-break zim_ASTUnaryNode___construct
-
-#break meta_tree_dtor
-#break meta_unarynode_dtor
-#break meta_binarynode_dtor
-#break meta_nodelist_dtor
-#break meta_tree_free
-#break meta_unarynode_free
-#break meta_binarynode_free
-#break meta_nodelist_free
-
-#break zim_ASTTree___construct
-#break zim_ASTUnaryNode___construct
-#break zim_ASTNodeList___construct
-#break zim_ASTNodeList_appendChild
-
-#break zim_ASTNodeList___toString
-
-################# common places for ZE2, php 5.3.3:
-### now we have the module symbols
-#break zend_startup_modules
-#run
-#disable
-### leaking return value:
-#break zend_execute_API.c:983
+source local.gdb
 set logging on
 set logging overwrite on
 #set history save on
