@@ -789,30 +789,94 @@ PHP_METHOD(ASTUnaryNode, __construct) {
 /* {{{ proto public void ASTUnaryNode::__toString()
  * Serialize an unary node to PHP code. This will also contain any unneeded nodes, if so desired. */
 PHP_METHOD(ASTUnaryNode, __toString) {
-	zval *obj, *property, *delim, *fill;
+	zval *obj, *property, *delimiter, *fill, *buffer;
+	ulong index;
+	long subtype=0;
 
 	obj = getThis();
 	RETVAL_EMPTY_STRING();
-	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
-	if(IS_NULL == Z_TYPE_P(property)) {
+	obj = getThis();
+	delimiter = NULL;
+	MAKE_STD_ZVAL(delimiter);
+	ZVAL_EMPTY_STRING(delimiter);
+
+	fill = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	subtype = Z_LVAL_P(zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("subtype")-1, 0 TSRMLS_CC));
+
+	index=0;
+	zend_hash_internal_pointer_reset(Z_ARRVAL_P(fill));
+	while(SUCCESS == zend_hash_has_more_elements(Z_ARRVAL_P(fill))) {
+		zval **data;
+		if(index <= META_FILL_UNARY_OPERAND_POSTOPERATOR+1) {
+			//if among the first things
+			if(index & 1) {
+				property = NULL;
+				switch(index) {
+					case 1:
+						if(subtype == META_UNARY_PREOPERATOR) {
+							property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 1 TSRMLS_CC);
+						}
+						break;
+					case 3:
+						property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operand")-1, 0 TSRMLS_CC);
+						break;
+					case 5:
+						if(subtype == META_UNARY_POSTOPERATOR) {
+							property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
+						}
+						break;
+				}
+				if(property) {
+					concat_function(return_value, return_value, property TSRMLS_CC);
+				}
+			}
+			else if(SUCCESS == zend_hash_index_find(Z_ARRVAL_P(fill), index, (void**)&data)) {
+				/* among first things, but not a special node */
+				ALLOC_INIT_ZVAL(buffer);
+				php_implode(delimiter, *data, buffer TSRMLS_CC);
+				concat_function(return_value, return_value, buffer TSRMLS_CC);
+				zval_dtor(buffer);
+				efree(buffer);
+				zend_hash_move_forward(Z_ARRVAL_P(fill));
+			}
+			index++;
+		}
+		else {
+			zend_hash_get_current_key(Z_ARRVAL_P(fill), NULL, &index, 0);
+			if(SUCCESS != zend_hash_get_current_data(Z_ARRVAL_P(fill), (void**)&data)) {
+				// TODO error, cleanup *
+				return;
+			}
+			if(Z_TYPE_PP(data) == IS_ARRAY) { /* TODO or an iterable object perhaps ? */
+				ALLOC_INIT_ZVAL(buffer);
+				php_implode(delimiter, *data, buffer TSRMLS_CC);
+				concat_function(return_value, return_value, buffer TSRMLS_CC);
+				zval_dtor(buffer);
+				efree(buffer);
+			}
+			else {
+				concat_function(return_value, return_value, *data TSRMLS_CC);
+			}
+			zend_hash_move_forward(Z_ARRVAL_P(fill));
+		}
+	}
+	zval_ptr_dtor(&delimiter);
+	if(0 == Z_STRLEN_P(return_value)) {
+		zval *operator=NULL;
+		/* TODO error reporting, though concat_function never returns FAILURE (fix the engine?) */
+		operator = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operator")-1, 0 TSRMLS_CC);
 		/* TODO get default representation for operator $type */
-	}
-	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		/* TODO never occurs */
-	}
-	ALLOC_INIT_ZVAL(delim);
-	ALLOC_INIT_ZVAL(fill);
-	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
-	/* TODO XXX if property is empty, fill it with default values (like the ' ' between echo and an expression) */
-	php_implode(delim, property, fill TSRMLS_CC);
-	zval_ptr_dtor(&delim);
-	if(FAILURE == concat_function(return_value, return_value, fill TSRMLS_CC)) {
-		/* TODO but concat_function never returns FAILURE */
-	}
-	zval_ptr_dtor(&fill);
-	property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operand")-1, 0 TSRMLS_CC);
-	if(FAILURE == concat_function(return_value, return_value, property TSRMLS_CC)) {
-		/* TODO never occurs */
+		property = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("operand")-1, 0 TSRMLS_CC);
+		if(operator && IS_STRING == Z_TYPE_P(operator) && subtype == META_UNARY_PREOPERATOR) {
+			concat_function(return_value, return_value, operator TSRMLS_CC);
+			/* TODO append a space if required by operator (e.g 'echo') */
+			concat_function(return_value, return_value, property TSRMLS_CC);
+		}
+		else {
+			concat_function(return_value, return_value, property TSRMLS_CC);
+			/* TODO any real-world cases where operand and post-operator are sepparated by a space? */
+			concat_function(return_value, return_value, operator TSRMLS_CC);
+		}
 	}
 }
 /* }}} */
