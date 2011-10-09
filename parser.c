@@ -906,16 +906,28 @@ PHP_METHOD(ASTUnaryNode, setOpRepresentation) {
 /* {{{ proto public void ASTUnaryNode::appendBetween(mixed $child)
  * Append $child to the nodes filling the space between the operator and the operand. */
 PHP_METHOD(ASTUnaryNode, appendBetween) {
-	zval *obj, *fill, *child;
+	zval *obj, *fill, *child, **store;
+	long where;
+	zend_bool do_free=0;
 
-	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z",
-	                                    &child)) {
+	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &child, &where)) {
 		WRONG_PARAM_COUNT;
 	}
 	obj = getThis();
+	store = NULL;
+	fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	if(FAILURE == zend_hash_index_find(Z_ARRVAL_P(fill), where, (void**)&store)) {
+		store = emalloc(sizeof(zval*));
+		do_free = 1;
+		MAKE_STD_ZVAL(*store);
+		array_init(*store);
+		add_index_zval(fill, where, *store);
+	}
 	Z_ADDREF_P(child);
-	fill = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
-	add_next_index_zval(fill, child);
+	add_next_index_zval(*store, child);
+	if(do_free) {
+		efree(store);
+	}
 }
 /* }}} */
 /* {{{ ASTUnaryNode methods */
