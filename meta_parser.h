@@ -35,16 +35,23 @@ const char* meta_token_repr(int n);
 #define PRIV(a) _priv_##a
 #define META_CALL_METHOD_EX(class, obj, method, retval, ...) do { \
     zend_function* PRIV(method); \
-    if(FAILURE == zend_hash_find(&META_CLASS(class)->function_table, STRL_PAIR( #method ), (void**) &PRIV(method))) { \
+    if(FAILURE == zend_hash_find(&(class)->function_table, STRL_PAIR( #method ), (void**) &PRIV(method))) { \
         DBG("failed finding function %s::%s in '%s' line %d", #class, #method, __FILE__, __LINE__); \
     } \
-    retval = obj_call_method_internal_ex(obj, META_CLASS(class), PRIV(method), EG(scope), 1 TSRMLS_CC, ##__VA_ARGS__); \
+    retval = obj_call_method_internal_ex(obj, class, PRIV(method), EG(scope), 1 TSRMLS_CC, ##__VA_ARGS__); \
 } while(0)
 
 /*use this only for methods which always return NULL or for which you want to discard the retval*/
-#define META_CALL_METHOD(class, obj, method, ...) do { \
+#define META_CALL_CLASS_METHOD(class, obj, method, ...) do { \
     zval *_retv; \
-    META_CALL_METHOD_EX(class, obj, method, _retv, ##__VA_ARGS__); \
+    META_CALL_METHOD_EX(META_CLASS(class), obj, method, _retv, ##__VA_ARGS__); \
+    if(NULL != _retv) { zval_ptr_dtor(&_retv); } \
+} while(0)
+
+#define META_CALL_METHOD(obj, method, ...) do { \
+    zval *_retv; \
+    zend_class_entry *ce = Z_OBJCE_P(obj); \
+    META_CALL_METHOD_EX(ce, obj, method, _retv, ##__VA_ARGS__); \
     if(NULL != _retv) { zval_ptr_dtor(&_retv); } \
 } while(0)
 

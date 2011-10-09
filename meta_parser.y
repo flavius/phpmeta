@@ -68,10 +68,10 @@
 #define DBG(fmt, args...)
 #endif
 
-#define META_PARSER_REV_FILL(upto, start, class, obj, where) do { TOKEN* cursor; cursor = start; \
+#define META_PARSER_REV_FILL(upto, start, obj, where) do { TOKEN* cursor; cursor = start; \
         while(upto != cursor->prev) { cursor = cursor->prev; } \
         while(cursor != start) { \
-            META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+            META_CALL_METHOD(obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
             cursor = cursor->next; \
             efree(cursor->prev); \
         } \
@@ -82,7 +82,7 @@
             TOKEN *cursor, *prev; \
             cursor = start->next; \
             while(upto != cursor) { \
-                META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+                META_CALL_METHOD(obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
                 prev = cursor; \
                 cursor = cursor->next; \
                 efree(prev); \
@@ -231,7 +231,7 @@ processing(A) ::= . {
 processing(A) ::= processing(B) processing_stmt(C) . {
 	/*TODO instead of crafting nodes manually, use the tree as a factory,
 	which instantiates the right classes if the user has some specific preferences*/
-	META_CALL_METHOD(tree, tree, appendchild, "z", C);
+	META_CALL_METHOD(tree, appendchild, "z", C);
 	/* A B C */
 }
 
@@ -245,20 +245,20 @@ processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
 	end_line = META_PROP(nodelist, C, "end_line");
-	META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
-	META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
+	META_CALL_METHOD(A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
+	META_CALL_METHOD(A, appendchild, "z", TOKEN_MINOR(B));
 	/*TODO take tree's flags into consideration*/
 	if(NULL != B->next) {
 		TOKEN *cursor, *prev;
 		cursor = B->next;
 		while(NULL != cursor) {
-			META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(cursor));
+			META_CALL_METHOD(A, appendchild, "z", TOKEN_MINOR(cursor));
 			prev = cursor;
 			cursor = cursor->next;
 			efree(prev);
 		}
 	}
-	META_CALL_METHOD(nodelist, A, appendchild, "z", C);
+	META_CALL_METHOD(A, appendchild, "z", C);
 	efree(B);
 }
 
@@ -273,8 +273,8 @@ top_stmt_list(A) ::= top_stmt(B) . {
 	end_line = META_PROP(node, B, "end_line");
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
-	META_CALL_METHOD(nodelist, A, appendchild, "z", B);
-	META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
+	META_CALL_METHOD(A, appendchild, "z", B);
+	META_CALL_METHOD(A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
 	A = B;
@@ -287,15 +287,15 @@ top_stmt(A) ::= stmt_with_semicolon(B) . {
 
 stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
     A = B;
-    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_AFTER);
-    META_CALL_METHOD(binarynode, B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
+    META_PARSER_REV_FILL(NULL, C, A, META_FILL_AFTER);
+    META_CALL_METHOD(B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
     efree(C);
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
 	Z_ADDREF_P(tree); // C
 	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
-    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_BINARY_LHS_OPERATOR);
+    META_PARSER_REV_FILL(NULL, C, A, META_FILL_BINARY_LHS_OPERATOR);
     META_PARSER_FW_FILL(NULL, C, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
 	efree(C);
 }
@@ -303,7 +303,7 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 expr(A) ::= LNUMBER(B) . {
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
-	META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
+	META_CALL_METHOD(A, setlines, "ll", B->start_line, B->end_line);
 	B->prev->next = NULL;
 	B->next->prev = NULL;
 	efree(B);
