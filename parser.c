@@ -1104,8 +1104,9 @@ PHP_METHOD(ASTBinaryNode, __toString) {
 /* {{{ proto public void ASTBinaryNode::appendBetween($child, $where)
  * Append $child to the filling area $where. */
 PHP_METHOD(ASTBinaryNode, appendBetween) {
-	zval *obj, *fill, *child, *store;
+	zval *obj, *fill, *child, **store;
 	long where;
+	zend_bool do_free=0;
 
 	if(FAILURE == zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl", &child, &where)) {
 		WRONG_PARAM_COUNT;
@@ -1114,12 +1115,17 @@ PHP_METHOD(ASTBinaryNode, appendBetween) {
 	store = NULL;
 	fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
 	if(FAILURE == zend_hash_index_find(Z_ARRVAL_P(fill), where, (void**)&store)) {
-		MAKE_STD_ZVAL(store);
-		array_init(store);
-		add_index_zval(fill, where, store);
+		store = emalloc(sizeof(zval*));
+		do_free = 1;
+		MAKE_STD_ZVAL(*store);
+		array_init(*store);
+		add_index_zval(fill, where, *store);
 	}
 	Z_ADDREF_P(child);
-	add_next_index_zval(store, child);
+	add_next_index_zval(*store, child);
+	if(do_free) {
+		efree(store);
+	}
 }
 /* }}} */
 /* {{{ proto public void ASTBinaryNode::setLHS(mixed $node)
