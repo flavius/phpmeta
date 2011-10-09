@@ -915,7 +915,7 @@ PHP_METHOD(ASTUnaryNode, appendBetween) {
 	}
 	obj = getThis();
 	store = NULL;
-	fill = zend_read_property(META_CLASS(binarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
+	fill = zend_read_property(META_CLASS(unarynode), obj, STRL_PAIR("fill")-1, 0 TSRMLS_CC);
 	if(FAILURE == zend_hash_index_find(Z_ARRVAL_P(fill), where, (void**)&store)) {
 		store = emalloc(sizeof(zval*));
 		do_free = 1;
