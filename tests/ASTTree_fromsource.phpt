@@ -4,7 +4,7 @@ Construct an ASTTree from a given PHP source code
 Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
-$tree = new ASTTree(0, "<?php 42 +  43;");
+$tree = new ASTTree(0, "<?php 42+43; 10+11;");
 var_dump((string)$tree);
 $tree->parse();
 var_dump($tree);

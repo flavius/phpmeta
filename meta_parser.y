@@ -62,7 +62,7 @@
 	}
 
 
-#if 0
+#if 1
 #define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
 #else
 #define DBG(fmt, args...)
@@ -221,14 +221,17 @@
 %type stmt_with_semicolon{zval*}
 
 start(A) ::=  processing(B) . {
+    DBG("reduction %d", __LINE__);
 	/* A B */
 }
 
 processing(A) ::= . {
+    DBG("reduction %d", __LINE__);
 	/* A B C */
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
+    DBG("reduction %d", __LINE__);
 	/*TODO instead of crafting nodes manually, use the tree as a factory,
 	which instantiates the right classes if the user has some specific preferences*/
 	META_CALL_METHOD(tree, appendchild, "z", C);
@@ -236,11 +239,13 @@ processing(A) ::= processing(B) processing_stmt(C) . {
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
+    DBG("reduction %d", __LINE__);
 	/*TODO init A as unary, set value to B, efree(B)*/
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	zval *end_line;
+    DBG("reduction %d", __LINE__);
 
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
@@ -263,11 +268,13 @@ processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . {
+    DBG("reduction %d", __LINE__);
 	/* A B C D */
 }
 
 top_stmt_list(A) ::= top_stmt(B) . {
 	zval *start_line, *end_line;
+    DBG("reduction %d", __LINE__);
 
 	start_line = META_PROP(node, B, "start_line");
 	end_line = META_PROP(node, B, "end_line");
@@ -277,15 +284,19 @@ top_stmt_list(A) ::= top_stmt(B) . {
 	META_CALL_METHOD(A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
+    DBG("reduction %d", __LINE__);
+	META_CALL_METHOD(B, appendchild, "z", C);
 	A = B;
 	/* A B C */
 }
 
 top_stmt(A) ::= stmt_with_semicolon(B) . {
+    DBG("reduction %d", __LINE__);
     A = B; // C
 }
 
 stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
+    DBG("reduction %d", __LINE__);
     A = B;
     META_PARSER_REV_FILL(NULL, C, A, META_FILL_AFTER);
     META_CALL_METHOD(B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
@@ -293,6 +304,7 @@ stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
+    DBG("reduction %d", __LINE__);
 	Z_ADDREF_P(tree); // C
 	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
     META_PARSER_REV_FILL(NULL, C, A, META_FILL_BINARY_LHS_OPERATOR);
@@ -301,6 +313,7 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 }
 
 expr(A) ::= LNUMBER(B) . {
+    DBG("reduction %d", __LINE__);
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
 	META_CALL_METHOD(A, setlines, "ll", B->start_line, B->end_line);
