@@ -59,7 +59,7 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
 	TOKEN_MINOR(t) = NULL;
 	t->dirty = 0;
 	/* TODO do something about free_me, either drop it completely, or redesign its role in token chains (meta_token_dtor) */
-	t->free_me = 0;
+	t->free_me = 1;
 	t->start_line = 0;
 	t->end_line = 0;
 	t->prev = NULL;

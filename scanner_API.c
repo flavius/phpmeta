@@ -99,6 +99,10 @@ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit
 	if(flags & META_TOK_CHAIN_GO_LEFT) {
 		cursor = (*start)->prev;
 		while(cursor != leftlimit) {
+			if(!cursor->free_me) {
+				cursor = cursor->prev;
+				continue;
+			}
 			if(flags & META_TOK_CHAIN_DEEPFREE_LEFT) {
 				zval_ptr_dtor(&TOKEN_MINOR(cursor));
 			}
@@ -110,6 +114,10 @@ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit
 	if(flags & META_TOK_CHAIN_GO_RIGHT) {
 		cursor = (*start)->next;
 		while(cursor != rightlimit) {
+			if(!cursor->free_me) {
+				cursor = cursor->prev;
+				continue;
+			}
 			if(flags & META_TOK_CHAIN_DEEPFREE_RIGHT) {
 				zval_ptr_dtor(&TOKEN_MINOR(cursor));
 			}
@@ -120,6 +128,9 @@ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit
 	}
 	if(flags & META_TOK_CHAIN_FREESELF) {
 		cursor = *start;
+		if(!cursor->free_me) {
+			return;
+		}
 		if(flags & META_TOK_CHAIN_FREESELF_DEEP) {
 			zval_ptr_dtor(&TOKEN_MINOR(cursor));
 		}
