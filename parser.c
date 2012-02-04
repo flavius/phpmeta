@@ -673,6 +673,8 @@ PHP_METHOD(ASTTree, parse) {
 		token = meta_scan(scanner TSRMLS_CC);
 		/* TODO check scanner->err_no */
 		major = TOKEN_MAJOR(token);
+		META_PRINT("\tTOKEN %ld\n", major);
+		META_ZDUMP(TOKEN_MINOR(token));
 		if(NULL == prev_token) {
 			prev_token = token;
 		}
@@ -680,10 +682,21 @@ PHP_METHOD(ASTTree, parse) {
 			token->prev = prev_token;
 			prev_token->next = token;
 			prev_token = token;
+			if(TOKEN_IS_DISPENSABLE(token)) {
+				META_PRINT("\tSKIPPED\n");
+				continue;
+			}
+			else {
+					META_PRINT("\tSEPARATION\n");
+					META_ZDUMP(prev_token->minor);
+				if(TOKEN_IS_DISPENSABLE(prev_token)) {
+					META_ZDUMP(token->minor);
+					prev_token->next = NULL;
+					token->prev = NULL;
+				}
+			}
 		}
-		if(TOKEN_IS_DISPENSABLE(token)) {
-			continue;
-		}
+
 		MetaParser(parser, major, token, obj);
 		if(major < 0) {
 			/* TODO error reporting */

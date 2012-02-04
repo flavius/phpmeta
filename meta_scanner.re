@@ -111,6 +111,7 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
     if(major == T_WHITESPACE) {
         TOKEN_IS_DISPENSABLE(t) = 1;
     }
+    META_ZDUMP(TOKEN_MINOR(t));
 	return t;
 }
 
