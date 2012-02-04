@@ -50,7 +50,18 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
 /*TODO my debug, conditional define in 0.0.1*/
 #include <standard/php_var.h>
 
+/*
 #define META_ZDUMP(pzv) do { php_printf("-- (%d : '%s') %p: ",__LINE__, __PRETTY_FUNCTION__, pzv); \
     if(NULL != pzv) php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
+*/
+
+#if 0
+#define META_PRINT(fmt, args...) php_printf("%s (%d): ", __FILE__, __LINE__); php_printf(fmt, ## args); php_printf("\n")
+#else
+#define META_PRINT(fmt, args...)
+#endif
+
+//TODO use php_var_export_ex, see PHP_FUNCTION(var_export) in ext/standard/var.c#513
+#define META_ZDUMP(pzv) META_PRINT("%p", (pzv))
 
 #endif /*PHP_META_H*/

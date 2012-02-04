@@ -22,32 +22,21 @@
 #include "meta_scanner.h"
 #include "scanner_API.h"
 #include "meta_parser.h"
+#include "php_meta.h" //for debugging macros
 #include <errno.h>
 
 #define IS_EOL(c) *(c) == '\n' || (*(c) == '\r' && *((c)+1) != '\n')
 
-#ifdef DEBUG
-# if 1
-#  define DBG_SCANNER(state, c) php_printf("\t\t\tlex state %d, cursor '%c'(%d)\n", state, c, c)
-# else
-#  define DBG_SCANNER(state, c)
-# endif
-#define DBG(fmt, args...) php_printf("\t\t(pos %d)\t", YYCURSOR - scanner->src); php_printf(fmt, ## args); php_printf("\n")
-
-#define SCANNER_ZDUMP(pzv) do { php_printf("-- (%d : '%s') %p: ",__LINE__, __PRETTY_FUNCTION__, pzv); if(NULL != pzv) php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
-
-#else
-#define DBG_SCANNER(state, c)
-#define PRINT_DBG(fmt, args...)
-#endif
+#define DBG_SCANNER(state, c) META_PRINT("\t\tlex state %d, cursor '%c' (%d)", state, c, c)
 
 /*!max:re2c */
 
 const unsigned int meta_scanner_maxfill = YYMAXFILL;
 
-/* TODO:
+/* TODO (via scripts which parse meta_parser_defs):
  - create map for T_ numbers and TOKEN_IS_DISPENSABLE
- - create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit) */
+ - create map for T_ numbers and tokens which should not have a minor value (e.g '+', whose value is implicit)
+ - create map for CST vs. AST nodes */
 META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, int len TSRMLS_DC) {
 	TOKEN* t;
 	int errcode=0;

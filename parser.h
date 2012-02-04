@@ -160,12 +160,6 @@ static zend_object_value create_object_binarynode(zend_class_entry* TSRMLS_DC);
         efree(property_name); \
         } while(0)
 
-#if 0
-#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
-#else
-#define DBG(fmt, args...)
-#endif
-
 #endif
 
 #endif /* PARSER_H */

@@ -45,7 +45,7 @@ const char* meta_token_repr(int n);
 #define META_CALL_METHOD_EX(class, obj, method, retval, ...) do { \
     zend_function* PRIV(method); \
     if(FAILURE == zend_hash_find(&(class)->function_table, STRL_PAIR( #method ), (void**) &PRIV(method))) { \
-        DBG("failed finding function %s::%s in '%s' line %d", #class, #method, __FILE__, __LINE__); \
+        META_PRINT("failed finding function %s::%s in '%s' line %d", #class, #method, __FILE__, __LINE__); \
     } \
     retval = obj_call_method_internal_ex(obj, class, PRIV(method), EG(scope), 1 TSRMLS_CC, ##__VA_ARGS__); \
 } while(0)
