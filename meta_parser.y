@@ -215,17 +215,17 @@
 %type stmt_with_semicolon{zval*}
 
 start(A) ::=  processing(B) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B */
 }
 
 processing(A) ::= . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B C */
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/*TODO instead of crafting nodes manually, use the tree as a factory,
 	which instantiates the right classes if the user has some specific preferences*/
 	META_CALL_METHOD(tree, appendchild, "z", C);
@@ -233,13 +233,13 @@ processing(A) ::= processing(B) processing_stmt(C) . {
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/*TODO init A as unary, set value to B, efree(B)*/
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	zval *end_line;
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
@@ -262,13 +262,13 @@ processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B C D */
 }
 
 top_stmt_list(A) ::= top_stmt(B) . {
 	zval *start_line, *end_line;
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 
 	start_line = META_PROP(node, B, "start_line");
 	end_line = META_PROP(node, B, "end_line");
@@ -279,7 +279,7 @@ top_stmt_list(A) ::= top_stmt(B) . {
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
     MetaNode *meta_obj;
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	META_CALL_METHOD(B, appendchild, "z", C);
     /* TODO: add follow sets from C to B's children */
     meta_obj = (MetaNode*)zend_objects_get_address(B TSRMLS_CC);
@@ -295,14 +295,14 @@ top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
 }
 
 top_stmt(A) ::= stmt_with_semicolon(B) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
     A = B; // C
 }
 
 stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
     MetaNode *meta_obj;
     TOKEN *token = C;
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
     A = B;
     C->free_me = 0;
     /* cut the follow set at the first AST node */
@@ -318,7 +318,7 @@ stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	Z_ADDREF_P(tree); // C
 	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
     META_PARSER_REV_FILL(NULL, C, A, META_FILL_BINARY_LHS_OPERATOR);
@@ -327,7 +327,7 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 }
 
 expr(A) ::= LNUMBER(B) . {
-    META_PRINT("%s", yyRuleName[yyruleno]);
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
     META_ZDUMP(TOKEN_MINOR(B));
     //TODO debugging everything!
 	Z_ADDREF_P(tree);

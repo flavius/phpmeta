@@ -679,6 +679,7 @@ PHP_METHOD(ASTTree, parse) {
 	parser = MetaParserAlloc(meta_alloc);
 
 	do {
+		META_PRINT("\n\t\tfetch token\n\n");
 		token = meta_scan(scanner TSRMLS_CC);
 		/* TODO check scanner->err_no */
 		major = TOKEN_MAJOR(token);
@@ -712,6 +713,7 @@ PHP_METHOD(ASTTree, parse) {
 			efree(token);
 			break;
 		}
+		META_PRINT("\n\t\tEND fetch token\n\n");
 	} while(major > 0);
 
 	MetaParserFree(parser, meta_free);
