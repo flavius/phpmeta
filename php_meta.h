@@ -7,7 +7,7 @@
    | This source file is subject to version 3.01 of the PHP license,      |
    | that is bundled with this package in the file LICENSE, and is        |
    | available through the world-wide-web at the following url:           |
-   | http://www.php.net/license/3_01.txt                                 |
+   | http://www.php.net/license/3_01.txt                                  |
    | If you did not receive a copy of the PHP license and are unable to   |
    | obtain it through the world-wide-web, please send a note to          |
    | license@php.net so we can mail you a copy immediately.               |
@@ -64,7 +64,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
 #define META_SHOW_ADDR "0x%.8lX"
 //TODO use php_var_export_ex, see PHP_FUNCTION(var_export) in ext/standard/var.c#513
 #define META_ZDUMP(pzv) do {                                            \
-        META_PRINT(META_SHOW_ADDR, (long unsigned int)(pzv));           \
+        META_PRINT("zval addr " META_SHOW_ADDR, (long unsigned int)(pzv));           \
         if(NULL != (pzv)) switch(Z_TYPE_P((pzv))) {                     \
             case IS_BOOL:                                               \
                 META_PRINT("%s", Z_LVAL_P((pzv))?"true":"false");       \
@@ -76,11 +76,12 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
                 META_PRINT("long %ld", Z_LVAL_P((pzv)));                \
                 break;                                                  \
             case IS_STRING:                                             \
-                META_PRINT("'%s' (%d) at 0x%.8lX", Z_STRVAL_P((pzv)), Z_STRLEN_P((pzv)), Z_STRVAL_P((pzv))); \
+                META_PRINT("'%s' (%d) at " META_SHOW_ADDR, Z_STRVAL_P((pzv)), Z_STRLEN_P((pzv)), (unsigned long int) Z_STRVAL_P((pzv))); \
                 break;                                                  \
             default:                                                    \
                 META_PRINT("UNKNOWN");                                  \
         }                                                               \
     } while(0)
+#define META_TDUMP(token) META_PRINT("token addr " META_SHOW_ADDR " major %d ", (long unsigned int)(token), TOKEN_MAJOR((token))); META_ZDUMP(TOKEN_MINOR((token)))
 
 #endif /*PHP_META_H*/
