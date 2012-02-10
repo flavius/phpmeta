@@ -25,9 +25,59 @@
 #include "meta_parser.h" /* for T_ terminal definitions */
 #include "meta_scanner.h"
 #include "scanner_API.h"
-#define _INTERNAL
 #include "parser.h"
+#include "parser_API.h" /* for access to internal storage of the tree MetaNode basically */
 
+/* {{{ internal macros */
+static const function_entry php_meta_asttreeish_functions[];
+static const function_entry php_meta_astnode_functions[];
+static const function_entry php_meta_astnodelist_functions[];
+static const function_entry php_meta_asttree_functions[];
+static const function_entry php_meta_astunarynode_functions[];
+static const function_entry php_meta_astbinarynode_functions[];
+static const function_entry php_meta_astternarynode_functions[];
+
+static zend_object_handlers nodelist_handlers;
+static zend_object_value create_object_nodelist(zend_class_entry* TSRMLS_DC);
+
+static zend_object_handlers tree_handlers;
+static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC);
+
+static zend_object_handlers unarynode_handlers;
+static zend_object_value create_object_unarynode(zend_class_entry* TSRMLS_DC);
+
+static zend_object_handlers binarynode_handlers;
+static zend_object_value create_object_binarynode(zend_class_entry* TSRMLS_DC);
+
+/* internal macros, make coding more enjoyable */
+#define META_PROP_NULL(class, name, access) do { if(FAILURE == zend_declare_property_null( \
+            META_CLASS(class), name, sizeof(name)-1, ZEND_ACC_ ## access TSRMLS_CC)) { \
+            return FAILURE; \
+        } }while(0)
+
+#define META_PROP_ZERO(class, name, access) do { if(FAILURE == zend_declare_property_long( \
+            META_CLASS(class), name, sizeof(name)-1, 0, ZEND_ACC_ ## access TSRMLS_CC)) { \
+            return FAILURE; \
+        } }while(0)
+
+#define META_PROP_L(class, name, access, value) do { if(FAILURE == zend_declare_property_long( \
+            META_CLASS(class), name, sizeof(name)-1, value, ZEND_ACC_ ## access TSRMLS_CC)) { \
+            return FAILURE; \
+        } }while(0)
+
+#define META_DECREF_HTITEM(obj, visibility, prop, into) do { char* property_name; int property_len; \
+            zend_mangle_property_name(&property_name, &property_len, visibility, sizeof(visibility)-1, STRL_PAIR(prop), 0); \
+            if(SUCCESS == zend_hash_find((obj)->properties, property_name, property_len, (void**)&(into))) { \
+                if(Z_REFCOUNT_PP(into) > 1 || 0) { zval_ptr_dtor((into)); } \
+            } efree(property_name); \
+        } while(0)
+
+#define META_UPDATE_HPROPERTY(obj, visibility, name, value) do { char* property_name; int property_len; \
+        zend_mangle_property_name(&property_name, &property_len, visibility, sizeof(visibility)-1, STRL_PAIR(name), 0); \
+        zend_hash_update(obj->properties, property_name, property_len, &(value), sizeof(zval*), NULL); \
+        efree(property_name); \
+        } while(0)
+/* }}} */
 /* {{{ create and initialize internal classes
  */
 int meta_parser_init_function(INIT_FUNC_ARGS) {
