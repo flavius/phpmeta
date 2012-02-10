@@ -356,10 +356,7 @@ static void meta_nodelist_dtor(void *object, zend_object_handle handle TSRMLS_DC
 	meta_obj = object;
 	obj = &meta_obj->std;
 	META_DECREF_HTITEM(obj, "*", "children", property);
-	/* TODO deep free */
-	if(meta_obj->follow) {
-		efree(meta_obj->follow);
-	}
+	metanode_dtor(meta_obj);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) {
@@ -368,8 +365,7 @@ static zend_object_value create_object_nodelist(zend_class_entry* ce TSRMLS_DC) 
 	MetaNode *meta_obj;
 	zval *property;
 
-	meta_obj = emalloc(sizeof(MetaNode));
-	meta_obj->follow = NULL;
+	meta_obj = metanode_ctor();
 	obj = &meta_obj->std;
 	zend_object_std_init(obj, ce TSRMLS_CC);
 	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
@@ -608,10 +604,7 @@ static void meta_tree_dtor(void *object, zend_object_handle handle TSRMLS_DC) {
 	meta_obj = object;
 	obj = &meta_obj->std;
 	META_DECREF_HTITEM(obj, "*", "children", property);
-	/* TODO deep free */
-	if(meta_obj->follow) {
-		efree(meta_obj->follow);
-	}
+	metanode_dtor(meta_obj);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 
@@ -621,8 +614,7 @@ static zend_object_value create_object_tree(zend_class_entry *ce TSRMLS_DC) {
 	zval *property;
 	MetaNode *meta_obj;
 
-	meta_obj = emalloc(sizeof(MetaNode));
-	meta_obj->follow = NULL;
+	meta_obj = metanode_ctor();
 	obj = &meta_obj->std;
 	zend_object_std_init(obj, ce TSRMLS_CC);
 	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
@@ -818,10 +810,7 @@ static void meta_unarynode_dtor(void *object, zend_object_handle handle TSRMLS_D
 	meta_obj = object;
 	obj = &meta_obj->std;
 	META_DECREF_HTITEM(obj, "*", "fill", property);
-	/* TODO deep free */
-	if(meta_obj->follow) {
-		efree(meta_obj->follow);
-	}
+	metanode_dtor(meta_obj);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -830,8 +819,7 @@ static zend_object_value create_object_unarynode(zend_class_entry* ce TSRMLS_DC)
 	zval *property;
 	MetaNode *meta_obj;
 
-	meta_obj = emalloc(sizeof(MetaNode));
-	meta_obj->follow = NULL;
+	meta_obj = metanode_ctor();
 	obj = &meta_obj->std;
 	zend_object_std_init(obj, ce TSRMLS_CC);
 	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));
@@ -1063,10 +1051,7 @@ static void meta_binarynode_dtor(void *object, zend_object_handle handle TSRMLS_
 	meta_obj = object;
 	obj = &meta_obj->std;
 	META_DECREF_HTITEM(obj, "*", "fill", property);
-	/* TODO deep free */
-	if(meta_obj->follow) {
-		efree(meta_obj->follow);
-	}
+	metanode_dtor(meta_obj);
 	zend_objects_destroy_object(obj, handle TSRMLS_CC);
 }
 static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC) {
@@ -1075,8 +1060,7 @@ static zend_object_value create_object_binarynode(zend_class_entry* ce TSRMLS_DC
 	MetaNode *meta_obj;
 	zval *property;
 
-	meta_obj = emalloc(sizeof(MetaNode));
-	meta_obj->follow = NULL;
+	meta_obj = metanode_ctor();
 	obj = &meta_obj->std;
 	zend_object_std_init(obj, ce TSRMLS_CC);
 	zend_hash_copy(obj->properties, &ce->default_properties, (copy_ctor_func_t)zval_add_ref, NULL, sizeof(zval*));

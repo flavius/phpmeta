@@ -28,15 +28,6 @@ void *MetaParserAlloc(void *(*mallocProc)(size_t));
 void MetaParserFree(void *p, void (*freeProc)(void*) );
 void MetaParser( void *yyp,int yymajor,TOKEN* minor,zval *tree);
 
-/* we need pointers to CST nodes when we want to construct the CST
- * and all we've got in the grammar rule are non-terminals;
- * the problem is solved when we have terminals by making TOKEN a
- * doubly-linked list */
-typedef struct _meta_node {
-    zend_object std;
-    TOKEN *follow;
-} MetaNode;
-
 /*logistically, this belongs to the scanner*/
 const char* meta_token_repr(int n);
 /*------------------------------- convenience macros*/

@@ -22,6 +22,18 @@
 #include "meta_parser.h"
 /* TODO never include meta_parser_defs.h directly, do it through this file */
 
-/* TODO move here any internal functions specific to the parser, and not somehow exported to PHP the runtime (but to other extensions) */
+/* we need pointers to CST nodes when we want to construct the CST
+ * and all we've got in the grammar rule are non-terminals;
+ * the problem is solved when we have terminals by making TOKEN a
+ * doubly-linked list */
+typedef struct _meta_node {
+    zend_object std;
+    TOKEN *follow;
+} MetaNode;
+
+#define METANODE_FOLLOW(pnode) ((pnode)->follow)
+
+MetaNode* metanode_ctor();
+void metanode_dtor(MetaNode*);
 
 #endif /* PARSER_API_H */
