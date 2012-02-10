@@ -4020,6 +4020,12 @@ void ReportTable(
 
   /* Generate code which execution during each REDUCE action */
   for(rp=lemp->rule; rp; rp=rp->next){
+      ///XXX my change
+      //fprintf(out, "\tchar *yyrulename = \"");
+      //writeRuleText(out, rp);
+      //fprintf(out, "\";\n"); lineno++;
+      //printf("CODE: %s\n", rp->code);
+    //XXX end my change
     translate_code(lemp, rp);
   }
   /* First output rules other than the default: rule */
