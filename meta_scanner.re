@@ -108,10 +108,11 @@ META_API TOKEN* ast_token_ctor(meta_scanner* scanner, int major, char* start, in
 		ZVAL_STRINGL(TOKEN_MINOR(t), "UNKNOWN", sizeof("UNKNOWN"), 1);
 		php_error_docref(NULL TSRMLS_CC, E_CORE_ERROR, "Unknown terminal %d", major);
 	}
+    //TODO lookup token table with properties
     if(major == T_WHITESPACE) {
         TOKEN_IS_DISPENSABLE(t) = 1;
     }
-    META_ZDUMP(TOKEN_MINOR(t));
+    META_TDUMP(t);
 	return t;
 }
 

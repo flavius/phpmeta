@@ -307,7 +307,7 @@ stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
     C->free_me = 0;
     /* cut the follow set at the first AST node */
     while(token->next) {
-        //META_ZDUMP(token->minor);
+        META_ZDUMP(TOKEN_MINOR(token));
         token = token->next;
     }
     /* end cut */
@@ -328,7 +328,7 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 
 expr(A) ::= LNUMBER(B) . {
     META_PRINT("%s", yyRuleName[yyruleno]);
-    //META_ZDUMP(B->minor);
+    META_ZDUMP(TOKEN_MINOR(B));
     //TODO debugging everything!
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
