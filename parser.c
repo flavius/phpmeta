@@ -501,16 +501,16 @@ PHP_METHOD(ASTNodeList, appendChild) {
 	obj = getThis();
 	children = zend_read_property(META_CLASS(nodelist), obj, STRL_PAIR("children")-1, 0 TSRMLS_CC);
 	add_next_index_zval(children, child);
-	if(IS_OBJECT == Z_TYPE_P(child)) { /* TODO actually check for a marker interface */
+	if(IS_OBJECT == Z_TYPE_P(child)) { /* TODO actually check for a Treeish interface */
 		zend_class_entry *child_ce;
-		zend_function *setparent=NULL;
-		zval *retval;
+		zval *retval = NULL;
 		child_ce = Z_OBJCE_P(child);
-		if(FAILURE == zend_hash_find(&child_ce->function_table, STRL_PAIR("setparent"), (void**)&setparent)) {
-			php_error_docref(NULL TSRMLS_CC, E_USER_WARNING, "Child does not have a setParent method");
-			return;
+
+		META_CALL_METHOD_EX(child_ce, child, setparent, retval, "z", obj);
+		if(NULL != retval) {
+			zval_ptr_dtor(&retval);
+			retval = NULL;
 		}
-		retval = obj_call_method_internal_ex(child, child_ce, setparent, EG(scope), 1 TSRMLS_CC, "z", obj);
 		if(NULL != retval) {
 			zval_ptr_dtor(&retval);
 		}
