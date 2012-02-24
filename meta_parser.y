@@ -313,7 +313,7 @@ stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
     /* end cut */
     META_PARSER_REV_FILL(NULL, C, A, META_FILL_AFTER);
     meta_obj = (MetaNode*)zend_objects_get_address(B TSRMLS_CC);
-    meta_obj->follow = C; /* TODO: discriminate AST vs. CST, add only CST nodes to the follow set */
+    METANODE_FOLLOW(meta_obj) = C; /* TODO: discriminate AST vs. CST, add only CST nodes to the follow set */
     META_CALL_METHOD(B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
 }
 
