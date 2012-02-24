@@ -23,6 +23,19 @@
 
 /* see parser_API.h */
 
+MetaNode* metanode_ctor() {
+	MetaNode* node;
+	node = emalloc(sizeof(MetaNode));
+	METANODE_FOLLOW(node) = NULL;
+	return node;
+}
+void metanode_dtor(MetaNode* meta_obj) {
+	/* TODO deep free */
+	if(meta_obj->follow) {
+		efree(meta_obj->follow);
+	}
+}
+
 /*
  * Local variables:
  * tab-width: 4

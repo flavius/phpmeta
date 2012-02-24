@@ -51,6 +51,7 @@
 #endif
 
 #include "meta_parser.h"
+#include "php_meta.h" //for debugging macro
 
 	/*TODO maybe move it to the scanner?*/
 	static const char *const yyTokenName[];
@@ -61,17 +62,10 @@
 		return yyTokenName[n];
 	}
 
-
-#if 0
-#define DBG(fmt, args...) php_printf("\t\t"); php_printf(fmt, ## args); php_printf("\n")
-#else
-#define DBG(fmt, args...)
-#endif
-
-#define META_PARSER_REV_FILL(upto, start, class, obj, where) do { TOKEN* cursor; cursor = start; \
+#define META_PARSER_REV_FILL(upto, start, obj, where) do { TOKEN* cursor; cursor = start; \
         while(upto != cursor->prev) { cursor = cursor->prev; } \
         while(cursor != start) { \
-            META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+            META_CALL_METHOD(obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
             cursor = cursor->next; \
             efree(cursor->prev); \
         } \
@@ -82,7 +76,7 @@
             TOKEN *cursor, *prev; \
             cursor = start->next; \
             while(upto != cursor) { \
-                META_CALL_METHOD(class, obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
+                META_CALL_METHOD(obj, appendbetween, "zl", TOKEN_MINOR(cursor), (long)where); \
                 prev = cursor; \
                 cursor = cursor->next; \
                 efree(prev); \
@@ -221,91 +215,130 @@
 %type stmt_with_semicolon{zval*}
 
 start(A) ::=  processing(B) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B */
 }
 
 processing(A) ::= . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B C */
 }
 
 processing(A) ::= processing(B) processing_stmt(C) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/*TODO instead of crafting nodes manually, use the tree as a factory,
 	which instantiates the right classes if the user has some specific preferences*/
-	META_CALL_METHOD(tree, tree, appendchild, "z", C);
+	META_CALL_METHOD(tree, appendchild, "z", C);
 	/* A B C */
 }
 
 processing_stmt(A) ::= OUTSIDE_SCRIPTING(B) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/*TODO init A as unary, set value to B, efree(B)*/
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) . {
 	zval *end_line;
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
 	end_line = META_PROP(nodelist, C, "end_line");
-	META_CALL_METHOD(nodelist, A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
-	META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(B));
+	META_CALL_METHOD(A, setlines, "ll", B->start_line, Z_LVAL_P(end_line));
+	META_CALL_METHOD(A, appendchild, "z", TOKEN_MINOR(B));
 	/*TODO take tree's flags into consideration*/
 	if(NULL != B->next) {
 		TOKEN *cursor, *prev;
 		cursor = B->next;
 		while(NULL != cursor) {
-			META_CALL_METHOD(nodelist, A, appendchild, "z", TOKEN_MINOR(cursor));
+			META_CALL_METHOD(A, appendchild, "z", TOKEN_MINOR(cursor));
 			prev = cursor;
 			cursor = cursor->next;
 			efree(prev);
 		}
 	}
-	META_CALL_METHOD(nodelist, A, appendchild, "z", C);
+	META_CALL_METHOD(A, appendchild, "z", C);
 	efree(B);
 }
 
 processing_stmt(A) ::= OPEN_TAG(B) top_stmt_list(C) CLOSE_TAG(D) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	/* A B C D */
 }
 
 top_stmt_list(A) ::= top_stmt(B) . {
 	zval *start_line, *end_line;
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 
 	start_line = META_PROP(node, B, "start_line");
 	end_line = META_PROP(node, B, "end_line");
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(nodelist, A, "z", tree);
-	META_CALL_METHOD(nodelist, A, appendchild, "z", B);
-	META_CALL_METHOD(nodelist, A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
+	META_CALL_METHOD(A, appendchild, "z", B);
+	META_CALL_METHOD(A, setlines, "ll", Z_LVAL_P(start_line), Z_LVAL_P(end_line));
 }
 top_stmt_list(A) ::= top_stmt_list(B) top_stmt(C) . {
+    MetaNode *meta_obj;
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
+	META_CALL_METHOD(B, appendchild, "z", C);
+    /* TODO: add follow sets from C to B's children */
+    meta_obj = (MetaNode*)zend_objects_get_address(B TSRMLS_CC);
+    if(meta_obj->follow) {
+        TOKEN *cursor=meta_obj->follow;
+        while(cursor) {
+            META_CALL_METHOD(B, appendchild, "z", cursor);
+            cursor = cursor->next;
+        }
+    }
 	A = B;
 	/* A B C */
 }
 
 top_stmt(A) ::= stmt_with_semicolon(B) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
     A = B; // C
 }
 
 stmt_with_semicolon(A) ::= expr(B) SEMICOLON(C) . {
+    MetaNode *meta_obj;
+    TOKEN *token = C;
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
     A = B;
-    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_AFTER);
-    META_CALL_METHOD(binarynode, B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
-    efree(C);
+    C->free_me = 0;
+    /* cut the follow set at the first AST node */
+    while(token->next) {
+        META_ZDUMP(TOKEN_MINOR(token));
+        token = token->next;
+    }
+    /* end cut */
+    META_PARSER_REV_FILL(NULL, C, A, META_FILL_AFTER);
+    meta_obj = (MetaNode*)zend_objects_get_address(B TSRMLS_CC);
+    METANODE_FOLLOW(meta_obj) = C; /* TODO: discriminate AST vs. CST, add only CST nodes to the follow set */
+    META_CALL_METHOD(B, appendbetween, "zl", TOKEN_MINOR(C), (long)META_FILL_AFTER);
 }
 
 expr(A) ::= expr(B) PLUS(C) expr(D) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
 	Z_ADDREF_P(tree); // C
 	META_NODE_CTOR(binarynode, A, "lzzzz", (long)T_PLUS, tree, B, D, TOKEN_MINOR(C));
-    META_PARSER_REV_FILL(NULL, C, binarynode, A, META_FILL_BINARY_LHS_OPERATOR);
+    META_PARSER_REV_FILL(NULL, C, A, META_FILL_BINARY_LHS_OPERATOR);
     META_PARSER_FW_FILL(NULL, C, binarynode, A, META_FILL_BINARY_OPERATOR_RHS);
 	efree(C);
 }
 
 expr(A) ::= LNUMBER(B) . {
+    META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
+    META_TDUMP(B);
+    //TODO debugging everything!
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
-	META_CALL_METHOD(unarynode, A, setlines, "ll", B->start_line, B->end_line);
-	B->prev->next = NULL;
-	B->next->prev = NULL;
+	META_CALL_METHOD(A, setlines, "ll", B->start_line, B->end_line);
+    if(B->prev) {
+        B->prev->next = NULL;
+    }
+    if(B->next) {
+        B->next->prev = NULL;
+    }
 	efree(B);
 }
 

@@ -31,7 +31,7 @@ typedef struct _token {
     /*set by the scanner if it detects integer overflows or things like that*/
     zend_bool dirty;
     /*true for white spacing, comments, etc, any NT not handled by the grammar rules, which needs to be done manually*/
-    zend_bool is_dispensable;
+    zend_bool is_cst;
     /*true if it should be freed by ast_token_dtor (in the chain)*/
     zend_bool free_me;
     long start_line;
@@ -47,8 +47,7 @@ typedef struct _token {
 #define TOKEN_MAJOR(t) ((t)->major)
 #define TOKEN_MINOR(t) ((t)->minor)
 #define TOKEN_IS_DIRTY(t) ((t)->dirty)
-/*TODO rename this to TOKEN_IS_SUGAR :-)*/
-#define TOKEN_IS_DISPENSABLE(t) ((t)->is_dispensable)
+#define TOKEN_IS_DISPENSABLE(t) ((t)->is_cst)
 #define TOKEN_IS_FREEABLE(t) ((t)->free_me)
 
 typedef struct _meta_scanner {

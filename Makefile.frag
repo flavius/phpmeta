@@ -14,7 +14,7 @@ $(builddir)/meta_scanner.c $(builddir)/meta_scanner_defs.h: $(srcdir)/meta_scann
 	$(RE2C) $(RE2C_FLAGS) -t $(builddir)/meta_scanner_defs.h -o $(builddir)/meta_scanner.c $(srcdir)/meta_scanner.re
 
 $(builddir)/meta_parser_defs.h $(builddir)/meta_parser.c: $(builddir)/lemon $(srcdir)/meta_parser.y
-	$(builddir)/lemon -q T=$(srcdir)/lempar.c u=meta_parser_defs.h n=NT_ $(srcdir)/meta_parser.y
+	$(builddir)/lemon T=$(srcdir)/lempar.c u=meta_parser_defs.h n=NT_ $(srcdir)/meta_parser.y
 
 $(builddir)/lemon: $(srcdir)/lemon.c $(srcdir)/lempar.c
 	$(CC) $(srcdir)/lemon.c -o $(builddir)/lemon

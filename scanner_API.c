@@ -84,21 +84,29 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
 	*scanner=NULL;
 }
 /* }}} */
-/* {{{ META_API void meta_token_dtor(TOKEN** t, zend_bool deep)
- * During the parsing loop, the scanner may spit out tokens which are not covered by the grammar. These
- * are usually comments, whitespaces, etc - putting them in the grammar would make it unnecessarily complex.
- * By linking tokens together, we are able to slice out parts of this ring as reduction happen, and stich
+/* {{{ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit, void* rightlimit)
+ * During the parsing loop, the scanner may spit out tokens which are not covered by the grammar (CST-specific tokens).
+ * These are usually comments, whitespaces, etc - putting them in the grammar would make it unnecessarily complex.
+ * By linking tokens together, we are able to slice out parts of this ring as reduction happens, and stich
  * them together to their appropiate parents, usually via *::appendChild().
  *
- * This function allows you to free such a slice out of the ring.
+ * Parameters:
+ * start - the starting point
+ * flags	- mask of META_TOK_CHAIN_GO_(LEFT|RIGHT) - to go to the left and/or to the right of the starting point
+ *			- META_TOK_CHAIN_DEEPFREE_(LEFT|RIGHT) - free the tokens and their minors too, to the left and/or to the right of start
+ *	leftlimit, rightlimit - up to where to iterate the chain - usually NULL if you want to iterate everything
  *
- * If deep is true, destroy minors on the way there too (useful when getting rid of the tokens, not when building the CST)
+ *	TODO: rename to meta_tokenchain_dtor()
  */
 META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit, void* rightlimit) {
 	TOKEN *cursor, *prev;
 	if(flags & META_TOK_CHAIN_GO_LEFT) {
 		cursor = (*start)->prev;
 		while(cursor != leftlimit) {
+			if(!cursor->free_me) {
+				cursor = cursor->prev;
+				continue;
+			}
 			if(flags & META_TOK_CHAIN_DEEPFREE_LEFT) {
 				zval_ptr_dtor(&TOKEN_MINOR(cursor));
 			}
@@ -110,6 +118,10 @@ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit
 	if(flags & META_TOK_CHAIN_GO_RIGHT) {
 		cursor = (*start)->next;
 		while(cursor != rightlimit) {
+			if(!cursor->free_me) {
+				cursor = cursor->prev;
+				continue;
+			}
 			if(flags & META_TOK_CHAIN_DEEPFREE_RIGHT) {
 				zval_ptr_dtor(&TOKEN_MINOR(cursor));
 			}
@@ -120,6 +132,9 @@ META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit
 	}
 	if(flags & META_TOK_CHAIN_FREESELF) {
 		cursor = *start;
+		if(!cursor->free_me) {
+			return;
+		}
 		if(flags & META_TOK_CHAIN_FREESELF_DEEP) {
 			zval_ptr_dtor(&TOKEN_MINOR(cursor));
 		}
