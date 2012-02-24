@@ -56,7 +56,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
 */
 
 #if 1
-#define META_PRINT(fmt, args...) php_printf("%s (%d): ", __FILE__, __LINE__); php_printf(fmt, ## args); php_printf("\n")
+#define META_PRINT(fmt, args...) php_printf("%s (%d) in %s(): ", __FILE__, __LINE__, __FUNCTION__); php_printf(fmt, ## args); php_printf("\n")
 #else
 #define META_PRINT(fmt, args...)
 #endif
@@ -82,6 +82,6 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
                 META_PRINT("UNKNOWN");                                  \
         }                                                               \
     } while(0)
-#define META_TDUMP(token) META_PRINT("token addr " META_SHOW_ADDR " major %d ", (long unsigned int)(token), TOKEN_MAJOR((token))); META_ZDUMP(TOKEN_MINOR((token)))
+#define META_TDUMP(token) META_PRINT("token addr " META_SHOW_ADDR " major %s (%d) ", (long unsigned int)(token), meta_token_repr(TOKEN_MAJOR(token)), TOKEN_MAJOR((token))); META_ZDUMP(TOKEN_MINOR((token)))
 
 #endif /*PHP_META_H*/
