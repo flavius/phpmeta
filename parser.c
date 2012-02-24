@@ -254,12 +254,45 @@ PHP_METHOD(ASTNode, setParent) {
 
 	old_parent = zend_read_property(META_CLASS(node), obj, STRL_PAIR("parent")-1, 0 TSRMLS_CC);
 	if(old_parent != parent) {
+		MetaNode *meta_obj;
+		TOKEN *cursor;
+		TOKEN *temp_cursor;
+
 		if(IS_NULL != Z_TYPE_P(old_parent)) {
 			/* TODO detach from old parent, if different */
 		}
-		/* TODO notify the parent? */
 		META_UP_PROP(node, obj, "parent", parent);
 		Z_ADDREF_P(parent);
+		//follow set - I have something the parent needs
+		meta_obj = (MetaNode*)zend_objects_get_address(obj TSRMLS_CC);
+		cursor = METANODE_FOLLOW(meta_obj);
+		if(cursor) {
+			zend_class_entry* parent_ce;
+			if(!TOKEN_IS_DISPENSABLE(cursor)) {
+				cursor = cursor->next;
+			}
+			parent_ce = Z_OBJCE_P(parent);
+			while(cursor && TOKEN_IS_DISPENSABLE(cursor)) {
+				zval* retval = NULL;
+				META_TDUMP(cursor);
+				META_CALL_METHOD_EX(parent_ce, parent, appendchild, retval, "z", TOKEN_MINOR(cursor));
+				if(NULL != retval) {
+					zval_ptr_dtor(&retval);
+					retval = NULL;
+				}
+				temp_cursor = cursor;
+				cursor = cursor->next;
+				meta_token_dtor(&temp_cursor, META_TOK_CHAIN_FREESELF, NULL, NULL);
+			}
+			/*
+			if(cursor) {
+				if(cursor->prev) {
+					cursor->prev->next = NULL;
+				}
+				cursor->prev = NULL;
+			}
+			*/
+		}
 	}
 }
 /* }}} */
@@ -339,7 +372,7 @@ static const function_entry php_meta_astnode_functions[] = {
 };
 /* }}} */
 /* }}} */
-/* {{{ class ASTNodeList */
+/* {{{ class ASTNodeList implements Treeish */
 /* {{{ internal handlers */
 static zend_object_handlers nodelist_handlers;
 static void meta_nodelist_free(void *object TSRMLS_DC) {
@@ -510,9 +543,6 @@ PHP_METHOD(ASTNodeList, appendChild) {
 		if(NULL != retval) {
 			zval_ptr_dtor(&retval);
 			retval = NULL;
-		}
-		if(NULL != retval) {
-			zval_ptr_dtor(&retval);
 		}
 	}
 }
@@ -721,7 +751,7 @@ PHP_METHOD(ASTTree, parse) {
 	parser = MetaParserAlloc(meta_alloc);
 
 	do {
-		META_PRINT("\n\t\tfetch token\n\n");
+		META_PRINT("\n\n\n\t\tfetch token");
 		token = meta_scan(scanner TSRMLS_CC);
 		/* TODO check scanner->err_no */
 		major = TOKEN_MAJOR(token);
@@ -738,7 +768,7 @@ PHP_METHOD(ASTTree, parse) {
 				continue;
 			}
 			else {
-				META_PRINT("\tSEPARATION\n");
+				META_PRINT("\tSEPARATOR by %s\n", meta_token_repr(TOKEN_MAJOR(token)));
 				if(TOKEN_IS_DISPENSABLE(prev_token)) {
 					prev_token->next = NULL;
 					token->prev = NULL;

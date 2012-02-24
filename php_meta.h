@@ -55,7 +55,7 @@ zval* obj_call_method_internal_ex(zval *obj, zend_class_entry *ce, zend_function
     if(NULL != pzv) php_debug_zval_dump(&(pzv), 0 TSRMLS_CC); } while(0)
 */
 
-#if 1
+#if 0
 #define META_PRINT(fmt, args...) php_printf("%s (%d) in %s(): ", __FILE__, __LINE__, __FUNCTION__); php_printf(fmt, ## args); php_printf("\n")
 #else
 #define META_PRINT(fmt, args...)

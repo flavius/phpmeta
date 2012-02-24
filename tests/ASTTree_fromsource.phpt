@@ -5,13 +5,13 @@ Flavius Aspra <flavius@php.net>
 --FILE--
 <?php
 $tree = new ASTTree(0, "<?php 42+43; 10+11;");
-var_dump((string)$tree);
+//var_dump((string)$tree);
 $tree->parse();
-var_dump($tree);
 var_dump((string)$tree);
+var_dump($tree);
 ?>
 --EXPECT--
-string(0) ""
+string(19) "<?php 42+43; 10+11;"
 object(ASTTree)#1 (8) {
   ["root":protected]=>
   *RECURSION*
@@ -26,7 +26,7 @@ object(ASTTree)#1 (8) {
   ["children":protected]=>
   array(1) {
     [0]=>
-    object(ASTNodeList)#6 (6) {
+    object(ASTNodeList)#9 (6) {
       ["root":protected]=>
       *RECURSION*
       ["parent":protected]=>
@@ -56,7 +56,7 @@ object(ASTTree)#1 (8) {
           ["end_line":protected]=>
           int(0)
           ["children":protected]=>
-          array(1) {
+          array(3) {
             [0]=>
             object(ASTBinaryNode)#4 (10) {
               ["type":protected]=>
@@ -72,17 +72,7 @@ object(ASTTree)#1 (8) {
               ["end_line":protected]=>
               int(0)
               ["fill":protected]=>
-              array(3) {
-                [2]=>
-                array(1) {
-                  [0]=>
-                  string(1) " "
-                }
-                [4]=>
-                array(1) {
-                  [0]=>
-                  string(2) "  "
-                }
+              array(1) {
                 [2147483647]=>
                 array(1) {
                   [0]=>
@@ -140,14 +130,88 @@ object(ASTTree)#1 (8) {
               ["operator":protected]=>
               string(1) "+"
             }
+            [1]=>
+            string(1) " "
+            [2]=>
+            object(ASTBinaryNode)#8 (10) {
+              ["type":protected]=>
+              int(41)
+              ["root":protected]=>
+              *RECURSION*
+              ["parent":protected]=>
+              *RECURSION*
+              ["index":protected]=>
+              NULL
+              ["start_line":protected]=>
+              int(0)
+              ["end_line":protected]=>
+              int(0)
+              ["fill":protected]=>
+              array(1) {
+                [2147483647]=>
+                array(1) {
+                  [0]=>
+                  string(1) ";"
+                }
+              }
+              ["lhs":protected]=>
+              object(ASTUnaryNode)#6 (10) {
+                ["type":protected]=>
+                int(67)
+                ["root":protected]=>
+                *RECURSION*
+                ["parent":protected]=>
+                NULL
+                ["index":protected]=>
+                NULL
+                ["start_line":protected]=>
+                int(1)
+                ["end_line":protected]=>
+                int(1)
+                ["fill":protected]=>
+                array(0) {
+                }
+                ["operator":protected]=>
+                NULL
+                ["subtype":protected]=>
+                int(0)
+                ["operand":protected]=>
+                int(10)
+              }
+              ["rhs":protected]=>
+              object(ASTUnaryNode)#7 (10) {
+                ["type":protected]=>
+                int(67)
+                ["root":protected]=>
+                *RECURSION*
+                ["parent":protected]=>
+                NULL
+                ["index":protected]=>
+                NULL
+                ["start_line":protected]=>
+                int(1)
+                ["end_line":protected]=>
+                int(1)
+                ["fill":protected]=>
+                array(0) {
+                }
+                ["operator":protected]=>
+                NULL
+                ["subtype":protected]=>
+                int(0)
+                ["operand":protected]=>
+                int(11)
+              }
+              ["operator":protected]=>
+              string(1) "+"
+            }
           }
         }
       }
     }
   }
   ["source":protected]=>
-  string(15) "<?php 42 +  43;"
+  string(19) "<?php 42+43; 10+11;"
   ["flags":protected]=>
   int(0)
 }
-string(15) "<?php 42 +  43;"

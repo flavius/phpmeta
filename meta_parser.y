@@ -328,13 +328,17 @@ expr(A) ::= expr(B) PLUS(C) expr(D) . {
 
 expr(A) ::= LNUMBER(B) . {
     META_PRINT("REDUCTION %s", yyRuleName[yyruleno]);
-    META_ZDUMP(TOKEN_MINOR(B));
+    META_TDUMP(B);
     //TODO debugging everything!
 	Z_ADDREF_P(tree);
 	META_NODE_CTOR(unarynode, A, "zlz", tree, (long)T_LNUMBER, TOKEN_MINOR(B));
 	META_CALL_METHOD(A, setlines, "ll", B->start_line, B->end_line);
-	B->prev->next = NULL;
-	B->next->prev = NULL;
+    if(B->prev) {
+        B->prev->next = NULL;
+    }
+    if(B->next) {
+        B->next->prev = NULL;
+    }
 	efree(B);
 }
 
