@@ -95,6 +95,8 @@ META_API void meta_scanner_free(meta_scanner **scanner) {
  * flags	- mask of META_TOK_CHAIN_GO_(LEFT|RIGHT) - to go to the left and/or to the right of the starting point
  *			- META_TOK_CHAIN_DEEPFREE_(LEFT|RIGHT) - free the tokens and their minors too, to the left and/or to the right of start
  *	leftlimit, rightlimit - up to where to iterate the chain - usually NULL if you want to iterate everything
+ *
+ *	TODO: rename to meta_tokenchain_dtor()
  */
 META_API void meta_token_dtor(TOKEN** start, unsigned int flags, void* leftlimit, void* rightlimit) {
 	TOKEN *cursor, *prev;
